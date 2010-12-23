@@ -1,0 +1,13 @@
+Fault handler for SIGSEGV, SIGFPE, SIGBUS and SIGILL signals: display the
+Python backtrace and restore the previous handler. Allocate an alternate stack
+for this handler, if sigaltstack() is available, to be able to allocate memory
+on the stack, even on stack overflow.
+
+Website: http://github.com/haypo/faulthandler/
+
+
+Status
+======
+
+ * 2010-12-23: Tested with Python 2.6 on Debian Sid
+
