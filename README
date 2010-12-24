@@ -1,3 +1,7 @@
++++++++++++++
+Fault handler
++++++++++++++
+
 Fault handler for SIGSEGV, SIGFPE, SIGBUS and SIGILL signals: display the
 Python backtrace and restore the previous handler. Allocate an alternate stack
 for this handler, if sigaltstack() is available, to be able to allocate memory
@@ -68,7 +72,15 @@ the major version, and "version & 255" to get the minor version.
 Changelog
 =========
 
- * 2010-12-24: Version 1.0
+Version 1.1 (under development)
+-------------------------------
+
+XXX
+
+Version 1.0 (2010-12-24)
+------------------------
+
+ * First public release
 
 
 Status
@@ -91,8 +103,8 @@ System-wide fault handlers:
 
  * Ubuntu uses Apport: https://wiki.ubuntu.com/Apport
  * The Linux kernel logs also segfaults into /var/log/kern.log (and
-  /var/log/syslog). /proc/sys/kernel/core_pattern contols how coredumps are
-  created.
+   /var/log/syslog). /proc/sys/kernel/core_pattern contols how coredumps are
+   created.
  * Windows opens a popup on a fatal error asking if the error should be
    reported to Microsoft
 

@@ -3,15 +3,17 @@
 # Todo list to prepare a release:
 #  - run python tests.py
 #  - set VERSION in faulthandler/module.c
+#  - set VERSION in setup.py
 #  - set release date in the ChangeLog (README file)
 #  - git commit -a
 #  - git tag -a faulthandler-x.y
 #  - git push --tags
-#  - ./setup.py register sdist upload
+#  - python setup.py register sdist upload
 #  - update the website
 #
 # After the release:
 #  - increment VERSION in faulthandler/module.c
+#  - increment VERSION in setup.py
 #  - add a new empty section in the Changelog for the new version
 #  - git commit -a
 #  - git push
@@ -20,7 +22,7 @@ from __future__ import with_statement
 from distutils.core import setup, Extension
 from os.path import join as path_join
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 FILENAMES = ('backtrace.c', 'handler.c', 'module.c', 'tests.c')
 
