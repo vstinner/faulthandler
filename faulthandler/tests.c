@@ -25,24 +25,23 @@ faulthandler_sigfpe(PyObject *self, PyObject *args)
     return PyLong_FromLong(z);
 }
 
-#ifdef FAULTHANDLER_HAVE_SIGBUS
+#ifdef SIGBUS
 PyObject *
 faulthandler_sigbus(PyObject *self, PyObject *args)
 {
     pid_t pid = getpid();
     while(1)
-        kill(pid, SIGBUS);
+        raise(SIGBUS);
     Py_RETURN_NONE;
 }
 #endif
 
-#ifdef FAULTHANDLER_HAVE_SIGILL
+#ifdef SIGILL
 PyObject *
 faulthandler_sigill(PyObject *self, PyObject *args)
 {
-    pid_t pid = getpid();
     while(1)
-        kill(pid, SIGILL);
+        raise(SIGILL);
     Py_RETURN_NONE;
 }
 #endif

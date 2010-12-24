@@ -21,17 +21,13 @@ void faulthandler_dump_backtrace(int fd);
 PyObject* faulthandler_sigsegv(PyObject *self, PyObject *args);
 PyObject* faulthandler_sigfpe(PyObject *self, PyObject *args);
 
-#if defined(SIGBUS) && defined(HAVE_KILL)
-#define FAULTHANDLER_HAVE_SIGBUS
+#if defined(SIGBUS)
 PyObject* faulthandler_sigbus(PyObject *self, PyObject *args);
 #endif
 
-#if defined(SIGILL) && defined(HAVE_KILL)
-#define FAULTHANDLER_HAVE_SIGILL
+#if defined(SIGILL)
 PyObject* faulthandler_sigill(PyObject *self, PyObject *args);
 #endif
-
-PyObject* faulthandler_fatal_error(PyObject *self, PyObject *args);
 
 #endif
 

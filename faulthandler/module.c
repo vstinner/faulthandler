@@ -23,11 +23,11 @@ static PyMethodDef module_methods[] = {
      PyDoc_STR("sigsegv(release_gil=False): raise a SIGSEGV signal")},
     {"sigfpe", (PyCFunction)faulthandler_sigfpe, METH_NOARGS,
      PyDoc_STR("sigfpe(): raise a SIGFPE signal")},
-#ifdef FAULTHANDLER_HAVE_SIGBUS
+#ifdef SIGBUS
     {"sigbus", (PyCFunction)faulthandler_sigbus, METH_NOARGS,
      PyDoc_STR("sigbus(): raise a SIGBUS signal")},
 #endif
-#ifdef FAULTHANDLER_HAVE_SIGILL
+#ifdef SIGILL
     {"sigill", (PyCFunction)faulthandler_sigill, METH_NOARGS,
      PyDoc_STR("sigill(): raise a SIGILL signal")},
 #endif

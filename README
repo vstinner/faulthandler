@@ -75,6 +75,7 @@ Changelog
 Version 1.1 (under development)
 -------------------------------
 
+ * sigill() is available on Windows thanks to Martin's patch
  * fix dump_ascii() for signed char type (eg. on FreeBSD)
 
 Version 1.0 (2010-12-24)

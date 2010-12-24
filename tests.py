@@ -41,7 +41,7 @@ class FaultHandlerTests(unittest.TestCase):
             2,
             b'Segmentation fault')
 
-    @skipIf(sys.platform == 'win32', "SIGFPE cannot be catched on Windows")
+    @skipIf(sys.platform == 'win32', "SIGFPE cannot be caught on Windows")
     def test_sigfpe(self):
         self.check_output(
             ("import faulthandler; faulthandler.sigfpe()",),
