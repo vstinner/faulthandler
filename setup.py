@@ -37,6 +37,7 @@ CLASSIFIERS = [
     'Natural Language :: English',
     'Programming Language :: C',
     'Programming Language :: Python',
+    'Topic :: Software Development :: Debuggers',
     'Topic :: Software Development :: Libraries :: Python Modules',
 ]
 
@@ -47,7 +48,7 @@ options = {
     'name': "faulthandler",
     'version': VERSION,
     'license': "BSD (2-clause)",
-    'description': 'Python fault handler',
+    'description': 'Display the Python backtrace on a crash',
     'long_description': long_description,
     'url': "https://github.com/haypo/faulthandler/wiki/",
     'author': 'Victor Stinner',

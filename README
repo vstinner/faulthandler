@@ -9,6 +9,10 @@ on the stack, even on stack overflow.
 
 Just import the module to enable the fault handler.
 
+The Python backtrace is written to the file descriptor 2 which is supposed to
+be the standard error stream. Start your graphical applications in a terminal
+and run your server in foreground to see the backtrace.
+
 Website: https://github.com/haypo/faulthandler/wiki/
 
 
