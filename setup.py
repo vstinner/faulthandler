@@ -9,6 +9,9 @@
 #  - git tag -a faulthandler-x.y
 #  - git push --tags
 #  - python setup.py register sdist upload
+#  - python2.6 setup.py bdist_wininst upload
+#  - python2.7 setup.py bdist_wininst upload
+#  - python3.1 setup.py bdist_wininst upload
 #  - update the website
 #
 # After the release:
