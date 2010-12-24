@@ -9,7 +9,7 @@ on the stack, even on stack overflow.
 
 Just import the module to enable the fault handler.
 
-Website: http://github.com/haypo/faulthandler/
+Website: https://github.com/haypo/faulthandler/wiki/
 
 
 Example

@@ -46,7 +46,7 @@ options = {
     'license': "BSD (2-clause)",
     'description': 'Python fault handler',
     'long_description': long_description,
-    'url': "http://github.com/haypo/faulthandler/",
+    'url': "https://github.com/haypo/faulthandler/wiki/",
     'author': 'Victor Stinner',
     'author_email': 'victor.stinner@haypocalc.com',
     'ext_modules': [Extension('faulthandler',
