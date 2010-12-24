@@ -29,7 +29,6 @@ faulthandler_sigfpe(PyObject *self, PyObject *args)
 PyObject *
 faulthandler_sigbus(PyObject *self, PyObject *args)
 {
-    pid_t pid = getpid();
     while(1)
         raise(SIGBUS);
     Py_RETURN_NONE;
