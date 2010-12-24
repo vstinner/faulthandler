@@ -9,5 +9,33 @@ Website: http://github.com/haypo/faulthandler/
 Status
 ======
 
- * 2010-12-23: Tested with Python 2.6 on Debian Sid
+ * 2010-12-23: Tested with Python 2.6 and 3.2 on Debian Sid
+
+
+Similar projects
+================
+
+Application fault handlers:
+
+ * The GNU libc has a fault handler in debug/segfault.c
+ * XEmacs has a fault handler displaying the Lisp backtrace
+ * RPy has a fault handler
+
+System-wide fault handlers:
+
+ * Ubuntu uses Apport: https://wiki.ubuntu.com/Apport
+ * The Linux kernel logs also segfaults into /var/log/kern.log (and
+  /var/log/syslog). /proc/sys/kernel/core_pattern contols how coredumps are
+  created.
+ * Windows opens a popup on a fatal error asking if the error should be
+   reported to Microsoft
+
+
+See also
+========
+
+ * http://bugs.python.org/issue8863 (may 2010):
+   Display Python backtrace on SIGSEGV, SIGFPE and fatal error
+ * http://bugs.python.org/issue3999 (sept. 2009):
+   Real segmentation fault handler
 
