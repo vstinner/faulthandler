@@ -27,7 +27,7 @@ class FaultHandlerTests(unittest.TestCase):
             'Fatal Python error: ' + name,
             '',
             'Traceback (most recent call first):',
-            line.encode('ascii')]
+            line]
         process = subprocess.Popen(
             [sys.executable, '-c', code],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
