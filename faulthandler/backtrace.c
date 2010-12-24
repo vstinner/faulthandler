@@ -162,7 +162,7 @@ dump_frame(PyFrameObject *frame, int fd)
      ...
      File "xxx", line xxx in <xxx>
 
-   Write only the first MAX_DEPTH frames. If the traceback is truncated, write
+   Write only the first MAX_FRAME_DEPTH frames. If the traceback is truncated, write
    the line "  ...".
  */
 
@@ -203,7 +203,7 @@ faulthandler_dump_backtrace(int fd)
     PUTS("Traceback (most recent call first):\n", fd);
     depth = 0;
     while (frame != NULL) {
-        if (MAX_DEPTH <= depth) {
+        if (MAX_FRAME_DEPTH <= depth) {
             PUTS("  ...\n", fd);
             break;
         }

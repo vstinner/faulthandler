@@ -2,8 +2,9 @@
 #define FAULTHANDLER_HEADER
 
 #include "Python.h"
+#include <signal.h>
 
-#define MAX_DEPTH 100
+#define MAX_FRAME_DEPTH 100
 
 #define PUTS(str, fd) write(fd, str, strlen(str))
 
