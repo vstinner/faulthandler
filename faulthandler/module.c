@@ -10,7 +10,7 @@
 #define VERSION 1
 
 PyDoc_STRVAR(module_doc,
-"_faulthandler module.");
+"faulthandler module.");
 
 static PyMethodDef module_methods[] = {
     {"enable", (PyCFunction)faulthandler_enable_method, METH_NOARGS,
