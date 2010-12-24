@@ -61,8 +61,13 @@ initfaulthandler(void)
 #else
     m = Py_InitModule3("faulthandler", module_methods, module_doc);
 #endif
-    if (m == NULL)
-        goto error;
+    if (m == NULL) {
+#if PY_MAJOR_VERSION >= 3
+        return NULL;
+#else
+        return;
+#endif
+    }
 
     faulthandler_enable();
 
@@ -72,18 +77,9 @@ initfaulthandler(void)
     version = PyInt_FromLong(VERSION);
 #endif
     PyModule_AddObject(m, "version", version);
-    goto finally;
 
-error:
-    /* FIXME */ Py_XDECREF(m);
-    m = NULL;
-finally:
 #if PY_MAJOR_VERSION >= 3
     return m;
-#else
-    return;
 #endif
 }
-
-/* FIXME: call faulthandler_unload() at exit */
 
