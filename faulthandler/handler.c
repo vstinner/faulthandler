@@ -1,13 +1,14 @@
 #include "faulthandler.h"
-#include <frameobject.h>
-#include <code.h>
 #include <signal.h>
-#include <unistd.h>
 
 #ifdef HAVE_SIGACTION
 typedef struct sigaction _Py_sighandler_t;
 #else
 typedef PyOS_sighandler_t _Py_sighandler_t;
+#endif
+
+#ifdef HAVE_SIGALTSTACK
+static stack_t stack;
 #endif
 
 int faulthandler_enabled = 0;

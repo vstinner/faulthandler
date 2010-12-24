@@ -9,10 +9,6 @@
 
 #define VERSION 1
 
-#ifdef HAVE_SIGALTSTACK
-static stack_t stack;
-#endif
-
 PyDoc_STRVAR(module_doc,
 "_faulthandler module.");
 
@@ -59,11 +55,6 @@ initfaulthandler(void)
 #endif
 {
     PyObject *m, *version;
-
-    faulthandler_enabled = 0;
-#ifdef HAVE_SIGALTSTACK
-    stack.ss_sp = NULL;
-#endif
 
 #if PY_MAJOR_VERSION >= 3
     m = PyModule_Create(&module_def);
