@@ -10,9 +10,11 @@
 
 extern int faulthandler_enabled;
 
-void faulthandler_enable(void);
-PyObject* faulthandler_enable_method(PyObject *self);
-PyObject* faulthandler_disable_method(PyObject *self);
+void faulthandler_do_enable(void);
+PyObject* faulthandler_enable(PyObject *self);
+PyObject* faulthandler_disable(PyObject *self);
+PyObject* faulthandler_isenabled(PyObject *self);
+
 
 void faulthandler_dump_backtrace(int fd);
 

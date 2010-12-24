@@ -83,6 +83,13 @@ class FaultHandlerTests(unittest.TestCase):
         self.assertTrue(not_expected not in stderr,
                      "%r is present in %r" % (not_expected, stderr))
 
+    def test_isenabled(self):
+        self.assertFalse(faulthandler.isenabled())
+        faulthandler.enable()
+        self.assertTrue(faulthandler.isenabled())
+        faulthandler.disable()
+        self.assertFalse(faulthandler.isenabled())
+
 if __name__ == "__main__":
     unittest.main()
 

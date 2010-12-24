@@ -7,16 +7,18 @@
 
 #include "faulthandler.h"
 
-#define VERSION 1
+#define VERSION 0x100
 
 PyDoc_STRVAR(module_doc,
 "faulthandler module.");
 
 static PyMethodDef module_methods[] = {
-    {"enable", (PyCFunction)faulthandler_enable_method, METH_NOARGS,
+    {"enable", (PyCFunction)faulthandler_enable, METH_NOARGS,
      PyDoc_STR("enable(): enable the fault handler")},
-    {"disable", (PyCFunction)faulthandler_disable_method, METH_NOARGS,
+    {"disable", (PyCFunction)faulthandler_disable, METH_NOARGS,
      PyDoc_STR("disable(): disable the fault handler")},
+    {"isenabled", (PyCFunction)faulthandler_isenabled, METH_NOARGS,
+     PyDoc_STR("isenabled()->bool: check if the handler is enabled")},
     {"sigsegv", faulthandler_sigsegv, METH_VARARGS,
      PyDoc_STR("sigsegv(release_gil=False): raise a SIGSEGV signal")},
     {"sigfpe", (PyCFunction)faulthandler_sigfpe, METH_NOARGS,
@@ -69,7 +71,7 @@ initfaulthandler(void)
 #endif
     }
 
-    faulthandler_enable();
+    faulthandler_do_enable();
 
 #if PY_MAJOR_VERSION >= 3
     version = PyLong_FromLong(VERSION);

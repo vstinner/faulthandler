@@ -6,11 +6,17 @@ on the stack, even on stack overflow.
 Website: http://github.com/haypo/faulthandler/
 
 
+Changelog
+=========
+
+ * 2010-12-24: Version 1.0
+
+
 Status
 ======
 
- * 2010-12-23: Tested with Python 2.6, 3.1 and 3.2 on Debian Sid
- * 2010-12-23: Tested with Python 2.6 and 3.1 on Windows XP
+ * 2010-12-24: Tested with Python 2.6, 3.1 and 3.2 on Debian Sid
+ * 2010-12-24: Tested with Python 2.6 and 3.1 on Windows XP
 
 
 Similar projects

@@ -4,7 +4,7 @@ from __future__ import with_statement
 from distutils.core import setup, Extension
 from os.path import join as path_join
 
-VERSION = "0.5"
+VERSION = "1.0"
 
 FILENAMES = ('backtrace.c', 'handler.c', 'module.c', 'tests.c')
 

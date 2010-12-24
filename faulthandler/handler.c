@@ -79,7 +79,7 @@ faulthandler_unload(void)
 }
 
 void
-faulthandler_enable(void)
+faulthandler_do_enable(void)
 {
     unsigned int i;
     fault_handler_t *handler;
@@ -142,20 +142,20 @@ faulthandler_enable(void)
 }
 
 PyObject*
-faulthandler_enable_method(PyObject *self)
+faulthandler_enable(PyObject *self)
 {
-    faulthandler_enable();
+    faulthandler_do_enable();
     Py_RETURN_NONE;
 }
 
-static void
-faulthandler_disable(void)
+PyObject*
+faulthandler_disable(PyObject *self)
 {
     unsigned int i;
     fault_handler_t *handler;
 
     if (!faulthandler_enabled)
-        return;
+        goto exit;
     faulthandler_enabled = 0;
 
     for (i=0; i < NFAULT_SIGNALS; i++) {
@@ -169,12 +169,14 @@ faulthandler_disable(void)
 #endif
         handler->enabled = 0;
     }
+
+exit:
+    Py_RETURN_NONE;
 }
 
 PyObject*
-faulthandler_disable_method(PyObject *self)
+faulthandler_isenabled(PyObject *self)
 {
-    faulthandler_disable();
-    Py_RETURN_NONE;
+    return PyBool_FromLong(faulthandler_enabled);
 }
 
