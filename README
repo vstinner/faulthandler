@@ -32,8 +32,13 @@ To install faulthandler module, type the following command: ::
 
     python setup.py install
 
-You need a C compiler (eg. gcc) and Python headers. Eg. on Fedora, you have to
-install python-devel package (sudo yum install python-devel).
+Then you can test your setup using the following command: ::
+
+    python tests.py
+
+You need a C compiler (eg. gcc) and Python headers to build the faulthandler
+module. Eg. on Fedora, you have to install python-devel package (sudo yum
+install python-devel).
 
 
 faulthandler module API
