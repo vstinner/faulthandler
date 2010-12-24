@@ -24,14 +24,15 @@ class FaultHandlerTests(unittest.TestCase):
         code = '\n'.join(code)
         line = '  File "<string>", line %s in <module>' % line_number
         expected = [
-            b'Fatal Python error: ' + name,
-            b'',
-            b'Traceback (most recent call first):',
+            'Fatal Python error: ' + name,
+            '',
+            'Traceback (most recent call first):',
             line.encode('ascii')]
         process = subprocess.Popen(
             [sys.executable, '-c', code],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
+        stderr = stderr.decode('ascii', 'backslashreplace')
         lines = stderr.splitlines()
         self.assertEqual(lines, expected)
 
@@ -39,34 +40,34 @@ class FaultHandlerTests(unittest.TestCase):
         self.check_output(
             ("import faulthandler", "faulthandler.sigsegv()"),
             2,
-            b'Segmentation fault')
+            'Segmentation fault')
 
     @skipIf(sys.platform == 'win32', "SIGFPE cannot be caught on Windows")
     def test_sigfpe(self):
         self.check_output(
             ("import faulthandler; faulthandler.sigfpe()",),
             1,
-            b'Floating point exception')
+            'Floating point exception')
 
     @skipIf(not hasattr(faulthandler, 'sigbus'), "need faulthandler.sigbus()")
     def test_sigbus(self):
         self.check_output(
             ("import faulthandler", "faulthandler.sigbus()"),
             2,
-            b'Bus error')
+            'Bus error')
 
     @skipIf(not hasattr(faulthandler, 'sigill'), "need faulthandler.sigill()")
     def test_sigill(self):
         self.check_output(
             ("import faulthandler", "faulthandler.sigill()"),
             2,
-            b'Illegal instruction')
+            'Illegal instruction')
 
     def test_gil_released(self):
         self.check_output(
             ("import faulthandler", "faulthandler.sigsegv(True)"),
             2,
-            b'Segmentation fault')
+            'Segmentation fault')
 
     def test_disabled(self):
         code = "import faulthandler; faulthandler.disable(); faulthandler.sigsegv()"
@@ -75,11 +76,12 @@ class FaultHandlerTests(unittest.TestCase):
             del env['PYTHONFAULTHANDLER']
         except KeyError:
             pass
-        not_expected = b'Fatal Python error'
+        not_expected = 'Fatal Python error'
         process = subprocess.Popen(
             [sys.executable, '-c', code],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
         stdout, stderr = process.communicate()
+        stderr = stderr.decode('ascii', 'backslashreplace')
         self.assertTrue(not_expected not in stderr,
                      "%r is present in %r" % (not_expected, stderr))
 
