@@ -3,7 +3,61 @@ Python backtrace and restore the previous handler. Allocate an alternate stack
 for this handler, if sigaltstack() is available, to be able to allocate memory
 on the stack, even on stack overflow.
 
+Just import the module to enable the fault handler.
+
 Website: http://github.com/haypo/faulthandler/
+
+
+Example
+=======
+
+Example of a segmentation fault on Linux: ::
+
+    $ python
+    >>> import faulthandler
+    >>> faulthandler.isenabled()
+    True
+    >>> faulthandler.sigsegv()
+    Fatal Python error: Segmentation fault
+
+    Traceback (most recent call first):
+      File "<stdin>", line 1 in <module>
+    Segmentation fault
+
+
+Installation
+============
+
+To install faulthandler module, type the following command: ::
+
+    python setup.py install
+
+You need a C compiler (eg. gcc) and Python headers. Eg. on Fedora, you have to
+install python-devel package (sudo yum install python-devel).
+
+
+faulthandler module API
+=======================
+
+Fault handler state:
+
+ * enable(): enable the fault handler (it is enabled by default)
+ * disable(): disable the fault handler
+ * isenabled(): get the status of the fault handler
+
+Functions to test the fault handler:
+
+ * sigbus(): raise a SIGBUS signal (Bus error)
+ * sigfpe(): raise a SIGFPE signal (Floating point exception), do a division by
+   zero
+ * sigill(): raise a SIGILL signal (Illegal instruction)
+ * sigsegv(): raise a SIGSEGV signal (Segmentation fault), read memory from
+   NULL (address 0)
+
+sigbus() and sigill() are not available on all operation systems.
+
+The version can be read in the "version" attribute: use "version >> 8" to get
+the major version, and "version & 255" to get the minor version.
 
 
 Changelog
