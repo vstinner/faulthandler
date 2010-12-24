@@ -1,5 +1,21 @@
 #!/usr/bin/env python
 
+# Todo list to prepare a release:
+#  - run python tests.py
+#  - set VERSION in faulthandler/module.c
+#  - set release date in the ChangeLog (README file)
+#  - git commit -a
+#  - git tag -a faulthandler-x.y
+#  - git push --tags
+#  - ./setup.py register sdist upload
+#  - update the website
+#
+# After the release:
+#  - increment VERSION in faulthandler/module.c
+#  - add a new empty section in the Changelog for the new version
+#  - git commit -a
+#  - git push
+
 from __future__ import with_statement
 from distutils.core import setup, Extension
 from os.path import join as path_join
