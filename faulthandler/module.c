@@ -88,7 +88,7 @@ error:
     m = NULL;
 finally:
 #if PY_MAJOR_VERSION >= 3
-    return NULL;
+    return m;
 #else
     return;
 #endif
