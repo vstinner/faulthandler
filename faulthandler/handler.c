@@ -67,6 +67,17 @@ faulthandler(int signum)
     faulthandler_dump_backtrace(fd);
 }
 
+static void
+faulthandler_unload(void)
+{
+#ifdef HAVE_SIGALTSTACK
+    if (stack.ss_sp != NULL) {
+        PyMem_Free(stack.ss_sp);
+        stack.ss_sp = NULL;
+    }
+#endif
+}
+
 void
 faulthandler_enable(void)
 {
@@ -88,9 +99,11 @@ faulthandler_enable(void)
     stack.ss_flags = SS_ONSTACK;
     stack.ss_size = SIGSTKSZ;
     stack.ss_sp = PyMem_Malloc(stack.ss_size);
-    if (stack.ss_sp != NULL)
+    if (stack.ss_sp != NULL) {
         (void)sigaltstack(&stack, NULL);
+    }
 #endif
+    (void)Py_AtExit(faulthandler_unload);
 
     for (i=0; i < NFAULT_SIGNALS; i++) {
         handler = &fault_handlers[i];
@@ -164,15 +177,4 @@ faulthandler_disable_method(PyObject *self)
     faulthandler_disable();
     Py_RETURN_NONE;
 }
-
-#if 0
-static void
-faulthandler_unload(void)
-{
-#ifdef HAVE_SIGALTSTACK
-    if (stack.ss_sp != NULL)
-        PyMem_Free(stack.ss_sp);
-#endif
-}
-#endif
 
