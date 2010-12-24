@@ -35,7 +35,7 @@ static PyMethodDef module_methods[] = {
 #if PY_MAJOR_VERSION >= 3
 static struct PyModuleDef module_def = {
     PyModuleDef_HEAD_INIT,
-    "_sandbox",
+    "faulthandler",
     module_doc,
     -1,
     module_methods,
