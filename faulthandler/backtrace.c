@@ -135,8 +135,9 @@ dump_frame(PyFrameObject *frame, int fd)
         PUTS("???", fd);
     }
 
-#if PY_MAJOR_VERSION <= 2 && PY_MINOR_VERSION < 7
-    /* PyFrame_GetLineNumber() was introduced in Python 2.7.0 */
+#if (PY_MAJOR_VERSION <= 2 && PY_MINOR_VERSION < 7) \
+||  (PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION < 2)
+    /* PyFrame_GetLineNumber() was introduced in Python 2.7.0 and 3.2.0 */
     lineno = PyCode_Addr2Line(frame->f_code, frame->f_lasti);
 #else
     lineno = PyFrame_GetLineNumber(frame);
