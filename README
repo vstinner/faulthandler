@@ -75,7 +75,7 @@ Changelog
 Version 1.1 (under development)
 -------------------------------
 
-XXX
+ * fix dump_ascii() for signed char type (eg. on FreeBSD)
 
 Version 1.0 (2010-12-24)
 ------------------------

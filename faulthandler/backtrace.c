@@ -100,16 +100,18 @@ dump_ascii(PyObject *text, int fd)
     }
 #else
     char *s;
+    unsigned char c;
 
     size = PyString_GET_SIZE(text);
     s = PyString_AS_STRING(text);
     for (i=0; i < size; i++, s++) {
-        if (*s < 128) {
+        c = *s;
+        if (c < 128) {
             write(fd, s, 1);
         }
         else {
             PUTS("\\x", fd);
-            dump_hexadecimal(2, *s, fd);
+            dump_hexadecimal(2, c, fd);
         }
     }
 #endif
