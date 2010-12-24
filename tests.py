@@ -4,6 +4,21 @@ import subprocess
 import sys
 import unittest
 
+try:
+    skipIf = unittest.skipIf
+except AttributeError:
+    import functools
+    def skipIf(test, reason):
+        def decorator(func):
+            @functools.wraps(func)
+            def wrapper(*args, **kw):
+                if not test:
+                    return func(*args, **kw)
+                else:
+                    print("skip %s: %s" % (func.__name__, reason))
+            return wrapper
+        return decorator
+
 class FaultHandlerTests(unittest.TestCase):
     def check_output(self, code, line_number, name):
         code = '\n'.join(code)
@@ -26,29 +41,26 @@ class FaultHandlerTests(unittest.TestCase):
             2,
             b'Segmentation fault')
 
-    # SIGFPE cannot be catched on Windows
-    if sys.platform != 'win32':
-        def test_sigfpe(self):
-            self.check_output(
-                ("import faulthandler; faulthandler.sigfpe()",),
-                1,
-                b'Floating point exception')
+    @skipIf(sys.platform == 'win32', "SIGFPE cannot be catched on Windows")
+    def test_sigfpe(self):
+        self.check_output(
+            ("import faulthandler; faulthandler.sigfpe()",),
+            1,
+            b'Floating point exception')
 
-    # need faulthandler.sigbus()
-    if hasattr(faulthandler, 'sigbus'):
-        def test_sigbus(self):
-            self.check_output(
-                ("import faulthandler", "faulthandler.sigbus()"),
-                2,
-                b'Bus error')
+    @skipIf(not hasattr(faulthandler, 'sigbus'), "need faulthandler.sigbus()")
+    def test_sigbus(self):
+        self.check_output(
+            ("import faulthandler", "faulthandler.sigbus()"),
+            2,
+            b'Bus error')
 
-    # need faulthandler.sigill()
-    if hasattr(faulthandler, 'sigill'):
-        def test_sigill(self):
-            self.check_output(
-                ("import faulthandler", "faulthandler.sigill()"),
-                2,
-                b'Illegal instruction')
+    @skipIf(not hasattr(faulthandler, 'sigill'), "need faulthandler.sigill()")
+    def test_sigill(self):
+        self.check_output(
+            ("import faulthandler", "faulthandler.sigill()"),
+            2,
+            b'Illegal instruction')
 
     def test_gil_released(self):
         self.check_output(
@@ -68,7 +80,7 @@ class FaultHandlerTests(unittest.TestCase):
             [sys.executable, '-c', code],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
         stdout, stderr = process.communicate()
-        self.assert_(not_expected not in stderr,
+        self.assertTrue(not_expected not in stderr,
                      "%r is present in %r" % (not_expected, stderr))
 
 if __name__ == "__main__":
