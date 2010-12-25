@@ -104,6 +104,8 @@ Application fault handlers:
  * The GNU libc has a fault handler in debug/segfault.c
  * XEmacs has a fault handler displaying the Lisp backtrace
  * RPy has a fault handler
+ * Python WAD (Wrapped Application Debugger), released in 2001:
+   http://www.dabeaz.com/papers/Python2001/python.html
 
 System-wide fault handlers:
 
