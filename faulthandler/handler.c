@@ -67,6 +67,15 @@ faulthandler(int signum)
     faulthandler_dump_backtrace(fd);
 }
 
+void
+faulthandler_init()
+{
+    faulthandler_enabled = 0;
+#ifdef HAVE_SIGALTSTACK
+    stack.ss_sp = NULL;
+#endif
+}
+
 static void
 faulthandler_unload(void)
 {
@@ -79,7 +88,7 @@ faulthandler_unload(void)
 }
 
 void
-faulthandler_do_enable(void)
+faulthandler_do_enable()
 {
     unsigned int i;
     fault_handler_t *handler;

@@ -38,39 +38,39 @@ class FaultHandlerTests(unittest.TestCase):
 
     def test_sigsegv(self):
         self.check_output(
-            ("import faulthandler", "faulthandler.sigsegv()"),
+            ("import faulthandler; faulthandler.enable()", "faulthandler.sigsegv()"),
             2,
             'Segmentation fault')
 
     @skipIf(sys.platform == 'win32', "SIGFPE cannot be caught on Windows")
     def test_sigfpe(self):
         self.check_output(
-            ("import faulthandler; faulthandler.sigfpe()",),
+            ("import faulthandler; faulthandler.enable(); faulthandler.sigfpe()",),
             1,
             'Floating point exception')
 
     @skipIf(not hasattr(faulthandler, 'sigbus'), "need faulthandler.sigbus()")
     def test_sigbus(self):
         self.check_output(
-            ("import faulthandler", "faulthandler.sigbus()"),
+            ("import faulthandler; faulthandler.enable()", "faulthandler.sigbus()"),
             2,
             'Bus error')
 
     @skipIf(not hasattr(faulthandler, 'sigill'), "need faulthandler.sigill()")
     def test_sigill(self):
         self.check_output(
-            ("import faulthandler", "faulthandler.sigill()"),
+            ("import faulthandler; faulthandler.enable()", "faulthandler.sigill()"),
             2,
             'Illegal instruction')
 
     def test_gil_released(self):
         self.check_output(
-            ("import faulthandler", "faulthandler.sigsegv(True)"),
+            ("import faulthandler; faulthandler.enable()", "faulthandler.sigsegv(True)"),
             2,
             'Segmentation fault')
 
-    def test_disabled(self):
-        code = "import faulthandler; faulthandler.disable(); faulthandler.sigsegv()"
+    def check_disabled(self, *code):
+        code = '\n'.join(code)
         env = os.environ.copy()
         try:
             del env['PYTHONFAULTHANDLER']
@@ -84,6 +84,18 @@ class FaultHandlerTests(unittest.TestCase):
         stderr = stderr.decode('ascii', 'backslashreplace')
         self.assertTrue(not_expected not in stderr,
                      "%r is present in %r" % (not_expected, stderr))
+
+    def test_disabled(self):
+        self.check_disabled(
+            "import faulthandler",
+            "faulthandler.sigsegv()")
+
+    def test_enable_disable(self):
+        self.check_disabled(
+            "import faulthandler",
+            "faulthandler.enable()",
+            "faulthandler.disable()",
+            "faulthandler.sigsegv()")
 
     def test_isenabled(self):
         self.assertFalse(faulthandler.isenabled())

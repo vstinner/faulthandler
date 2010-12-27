@@ -7,7 +7,7 @@ Python backtrace and restore the previous handler. Allocate an alternate stack
 for this handler, if sigaltstack() is available, to be able to allocate memory
 on the stack, even on stack overflow.
 
-Just import the module to enable the fault handler.
+Import the module and call faulthandler.enable() to enable the fault handler.
 
 The Python backtrace is written to the file descriptor 2 which is supposed to
 be the standard error stream. Start your graphical applications in a terminal
@@ -23,8 +23,7 @@ Example of a segmentation fault on Linux: ::
 
     $ python
     >>> import faulthandler
-    >>> faulthandler.isenabled()
-    True
+    >>> faulthandler.enable()
     >>> faulthandler.sigsegv()
     Fatal Python error: Segmentation fault
 
@@ -52,9 +51,9 @@ install python-devel).
 faulthandler module API
 =======================
 
-Fault handler state:
+Fault handler state (disabled by default):
 
- * enable(): enable the fault handler (it is enabled by default)
+ * enable(): enable the fault handler
  * disable(): disable the fault handler
  * isenabled(): get the status of the fault handler
 
@@ -79,6 +78,8 @@ Changelog
 Version 1.1 (under development)
 -------------------------------
 
+ * disable the handler by default, because pkgutil may load the module and so
+   enable the handler which is unexpected
  * sigill() is available on Windows thanks to Martin's patch
  * fix dump_ascii() for signed char type (eg. on FreeBSD)
  * fix tests.py for Python 2.5

@@ -71,7 +71,7 @@ initfaulthandler(void)
 #endif
     }
 
-    faulthandler_do_enable();
+    faulthandler_init();
 
 #if PY_MAJOR_VERSION >= 3
     version = PyLong_FromLong(VERSION);
