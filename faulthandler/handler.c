@@ -60,9 +60,9 @@ faulthandler(int signum)
 #endif
     handler->enabled = 0;
 
-    PUTS("Fatal Python error: ", fd);
-    PUTS(handler->name, fd);
-    PUTS("\n\n", fd);
+    PUTS(fd, "Fatal Python error: ");
+    PUTS(fd, handler->name);
+    PUTS(fd, "\n\n");
 
     faulthandler_dump_backtrace(fd);
 }

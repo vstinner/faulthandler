@@ -25,7 +25,7 @@ reverse_string(char *text, const size_t len)
    and write it into the file fd */
 
 static void
-dump_decimal(int value, int fd)
+dump_decimal(int fd, int value)
 {
     char buffer[7];
     int len;
@@ -63,7 +63,7 @@ dump_hexadecimal(int width, unsigned long value, int fd)
 /* Write an unicode object into the file fd using ascii+backslashreplace */
 
 static void
-dump_ascii(PyObject *text, int fd)
+dump_ascii(int fd, PyObject *text)
 {
     Py_ssize_t i, size;
 #if PY_MAJOR_VERSION >= 3
@@ -78,7 +78,7 @@ dump_ascii(PyObject *text, int fd)
             write(fd, &c, 1);
         }
         else if (*u < 256) {
-            PUTS("\\x", fd);
+            PUTS(fd, "\\x");
             dump_hexadecimal(2, *u, fd);
         }
         else
@@ -86,12 +86,12 @@ dump_ascii(PyObject *text, int fd)
         if (*u < 65536)
 #endif
         {
-            PUTS("\\u", fd);
+            PUTS(fd, "\\u");
             dump_hexadecimal(4, *u, fd);
 #ifdef Py_UNICODE_WIDE
         }
         else {
-            PUTS("\\U", fd);
+            PUTS(fd, "\\U");
             dump_hexadecimal(8, *u, fd);
 #endif
         }
@@ -108,7 +108,7 @@ dump_ascii(PyObject *text, int fd)
             write(fd, s, 1);
         }
         else {
-            PUTS("\\x", fd);
+            PUTS(fd, "\\x");
             dump_hexadecimal(2, c, fd);
         }
     }
@@ -118,21 +118,21 @@ dump_ascii(PyObject *text, int fd)
 /* Write a frame into the file fd: "File "xxx", line xxx in xxx" */
 
 static void
-dump_frame(PyFrameObject *frame, int fd)
+dump_frame(int fd, PyFrameObject *frame)
 {
     PyCodeObject *code;
     int lineno;
 
     code = frame->f_code;
-    PUTS("  File ", fd);
+    PUTS(fd, "  File ");
     if (code != NULL && code->co_filename != NULL
         && PYSTRING_CHECK(code->co_filename))
     {
         write(fd, "\"", 1);
-        dump_ascii(code->co_filename, fd);
+        dump_ascii(fd, code->co_filename);
         write(fd, "\"", 1);
     } else {
-        PUTS("???", fd);
+        PUTS(fd, "???");
     }
 
 #if (PY_MAJOR_VERSION <= 2 && PY_MINOR_VERSION < 7) \
@@ -142,15 +142,15 @@ dump_frame(PyFrameObject *frame, int fd)
 #else
     lineno = PyFrame_GetLineNumber(frame);
 #endif
-    PUTS(", line ", fd);
-    dump_decimal(lineno, fd);
-    PUTS(" in ", fd);
+    PUTS(fd, ", line ");
+    dump_decimal(fd, lineno);
+    PUTS(fd, " in ");
 
     if (code != NULL && code->co_name != NULL
         && PYSTRING_CHECK(code->co_name))
-        dump_ascii(code->co_name, fd);
+        dump_ascii(fd, code->co_name);
     else
-        PUTS("???", fd);
+        PUTS(fd, "???");
 
     write(fd, "\n", 1);
 }
@@ -178,16 +178,16 @@ dump_backtrace(int fd, PyThreadState *tstate, int write_header)
         return;
 
     if (write_header)
-        PUTS("Traceback (most recent call first):\n", fd);
+        PUTS(fd, "Traceback (most recent call first):\n");
     depth = 0;
     while (frame != NULL) {
         if (MAX_FRAME_DEPTH <= depth) {
-            PUTS("  ...\n", fd);
+            PUTS(fd, "  ...\n");
             break;
         }
         if (!PyFrame_Check(frame))
             break;
-        dump_frame(frame, fd);
+        dump_frame(fd, frame);
         frame = frame->f_back;
         depth++;
     }
@@ -240,7 +240,7 @@ faulthandler_dump_backtrace_py(PyObject *self)
 
     fd = get_stdout();
 
-    /* The caller hold the GIL and so PyThreadState_Get() can be used */
+    /* The caller holds the GIL and so PyThreadState_Get() can be used */
     tstate = PyThreadState_Get();
     if (tstate == NULL) {
         PyErr_SetString(PyExc_RuntimeError, "Unable to get the thread state");
@@ -255,13 +255,13 @@ write_thread_id(int fd, PyThreadState *tstate,
                 unsigned int local_id, int is_current)
 {
     if (is_current)
-        PUTS("Current thread #", fd);
+        PUTS(fd, "Current thread #");
     else
-        PUTS("Thread #", fd);
-    dump_decimal(local_id, fd);
-    PUTS(" (0x", fd);
+        PUTS(fd, "Thread #");
+    dump_decimal(fd, local_id);
+    PUTS(fd, " (0x");
     dump_hexadecimal(sizeof(long)*2, (unsigned long)tstate->thread_id, fd);
-    PUTS("):\n", fd);
+    PUTS(fd, "):\n");
 }
 
 PyObject*
@@ -275,7 +275,7 @@ faulthandler_dump_backtrace_threads(PyObject *self)
 
     fd = get_stdout();
 
-    /* The caller hold the GIL and so PyThreadState_Get() can be used */
+    /* The caller holds the GIL and so PyThreadState_Get() can be used */
     current_thread = PyThreadState_Get();
 
     /* Get the current interpreter from the current thread */

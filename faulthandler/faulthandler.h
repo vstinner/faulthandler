@@ -6,7 +6,7 @@
 
 #define MAX_FRAME_DEPTH 100
 
-#define PUTS(str, fd) write(fd, str, strlen(str))
+#define PUTS(fd, str) write(fd, str, strlen(str))
 
 extern int faulthandler_enabled;
 
