@@ -153,16 +153,20 @@ class FaultHandlerTests(unittest.TestCase):
             'waiter.stop = True',
             'waiter.join()',
         ))
-        self.assertTrue(re.match(
-            'Thread #2 \(0x[0-9a-f]+\):\n'
+        # Normalize newlines for Windows
+        lines = '\n'.join(stdout.splitlines())
+        regex = (
+            'Thread #2 \\(0x[0-9a-f]+\\):\n'
             '  File "<string>", line 15 in run\n'
             '  File ".*threading.py", line [0-9]+ in __?bootstrap_inner\n'
             '  File ".*threading.py", line [0-9]+ in __?bootstrap\n'
             '\n'
-            'Current thread #1 \(0x[0-9a-f]+\):\n'
+            'Current thread #1 \\(0x[0-9a-f]+\\):\n'
             '  File "<string>", line 6 in dump\n'
-            '  File "<string>", line 20 in <module>\n'
-        , stdout), "<<<%s>>> doesn't match" % stdout)
+            '  File "<string>", line 20 in <module>'
+        )
+        self.assertTrue(re.match(regex, lines),
+                        "<<<%s>>> doesn't match" % lines)
 
 
 if __name__ == "__main__":
