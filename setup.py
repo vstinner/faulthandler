@@ -25,7 +25,7 @@ from __future__ import with_statement
 from distutils.core import setup, Extension
 from os.path import join as path_join
 
-VERSION = "1.1"
+VERSION = "1.2"
 
 FILENAMES = ('backtrace.c', 'handler.c', 'module.c', 'tests.c')
 

@@ -57,6 +57,11 @@ Fault handler state (disabled by default):
  * disable(): disable the fault handler
  * isenabled(): get the status of the fault handler
 
+Dump the current backtrace:
+
+ * dumpbacktrace(): backtrace of the current thread
+ * dumpbacktrace_threads(): backtrace of all threads
+
 Functions to test the fault handler:
 
  * sigbus(): raise a SIGBUS signal (Bus error)
@@ -74,6 +79,11 @@ the major version, and "version & 255" to get the minor version.
 
 Changelog
 =========
+
+Version 1.2 (under development)
+-------------------------------
+
+XXX
 
 Version 1.1 (2011-01-03)
 ------------------------
