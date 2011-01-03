@@ -111,13 +111,21 @@ Status
 Similar projects
 ================
 
+Python debuggers:
+
+ * tipper: write the backtrace of the current thread into a file on SIGUSR1
+   signal: http://pypi.python.org/pypi/tipper/
+ * crier: write the backtrace of the current thread into a file
+   (eg. /tmp/dump-<pid>) if a "request" file is created (eg. /tmp/crier-<pid>).
+   Implemented using a thread. https://gist.github.com/737056
+ * Python WAD (Wrapped Application Debugger), not update since 2001:
+   http://www.dabeaz.com/papers/Python2001/python.html
+
 Application fault handlers:
 
  * The GNU libc has a fault handler in debug/segfault.c
  * XEmacs has a fault handler displaying the Lisp backtrace
  * RPy has a fault handler
- * Python WAD (Wrapped Application Debugger), released in 2001:
-   http://www.dabeaz.com/papers/Python2001/python.html
 
 System-wide fault handlers:
 
