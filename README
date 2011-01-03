@@ -75,8 +75,8 @@ the major version, and "version & 255" to get the minor version.
 Changelog
 =========
 
-Version 1.1 (under development)
--------------------------------
+Version 1.1 (2011-01-03)
+------------------------
 
  * Disable the handler by default, because pkgutil may load the module and so
    enable the handler which is unexpected
