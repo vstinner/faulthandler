@@ -88,7 +88,7 @@ faulthandler_unload(void)
 }
 
 void
-faulthandler_do_enable()
+faulthandler_enable()
 {
     unsigned int i;
     fault_handler_t *handler;
@@ -151,9 +151,9 @@ faulthandler_do_enable()
 }
 
 PyObject*
-faulthandler_enable(PyObject *self)
+faulthandler_enable_py(PyObject *self)
 {
-    faulthandler_do_enable();
+    faulthandler_enable();
     Py_RETURN_NONE;
 }
 

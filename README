@@ -78,11 +78,12 @@ Changelog
 Version 1.1 (under development)
 -------------------------------
 
- * disable the handler by default, because pkgutil may load the module and so
+ * Disable the handler by default, because pkgutil may load the module and so
    enable the handler which is unexpected
+ * Add dumpbacktrace() and dumpbacktrace_threads() functions
  * sigill() is available on Windows thanks to Martin's patch
- * fix dump_ascii() for signed char type (eg. on FreeBSD)
- * fix tests.py for Python 2.5
+ * Fix dump_ascii() for signed char type (eg. on FreeBSD)
+ * Fix tests.py for Python 2.5
 
 Version 1.0 (2010-12-24)
 ------------------------

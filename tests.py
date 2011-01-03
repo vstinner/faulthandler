@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 import unittest
+import re
 
 try:
     skipIf = unittest.skipIf
@@ -106,6 +107,62 @@ class FaultHandlerTests(unittest.TestCase):
         self.assertTrue(faulthandler.isenabled())
         faulthandler.disable()
         self.assertFalse(faulthandler.isenabled())
+
+    def test_dumpbacktrace(self):
+        stdout, stderr = self.get_output((
+            'import faulthandler',
+            '',
+            'def funcB():',
+            '    faulthandler.dumpbacktrace()',
+            '',
+            'def funcA():',
+            '    funcB()',
+            '',
+            'funcA()',
+        ))
+        trace = stdout.splitlines()
+        self.assertEqual(trace, [
+            'Traceback (most recent call first):',
+            '  File "<string>", line 4 in funcB',
+            '  File "<string>", line 7 in funcA',
+            '  File "<string>", line 9 in <module>'
+        ])
+
+    def test_dumpbacktrace_threads(self):
+        stdout, stderr = self.get_output((
+            'import faulthandler',
+            'from threading import Thread',
+            'import time',
+            '',
+            'def dump():',
+            '    faulthandler.dumpbacktrace_threads()',
+            '',
+            'class Waiter(Thread):',
+            '    def __init__(self):',
+            '        Thread.__init__(self)',
+            '        self.stop = False',
+            '',
+            '    def run(self):',
+            '        while not self.stop:',
+            '            time.sleep(0.1)',
+            '',
+            'waiter = Waiter()',
+            'waiter.start()',
+            'time.sleep(0.1)',
+            'dump()',
+            'waiter.stop = True',
+            'waiter.join()',
+        ))
+        self.assertTrue(re.match(
+            'Thread #2 \(0x[0-9a-f]+\):\n'
+            '  File "<string>", line 15 in run\n'
+            '  File ".*threading.py", line [0-9]+ in __?bootstrap_inner\n'
+            '  File ".*threading.py", line [0-9]+ in __?bootstrap\n'
+            '\n'
+            'Current thread #1 \(0x[0-9a-f]+\):\n'
+            '  File "<string>", line 6 in dump\n'
+            '  File "<string>", line 20 in <module>\n'
+        , stdout), "<<<%s>>> doesn't match" % stdout)
 
 
 if __name__ == "__main__":

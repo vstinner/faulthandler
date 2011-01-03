@@ -45,13 +45,11 @@ dump_decimal(int value, int fd)
    and write it into the file fd */
 
 static void
-dump_hexadecimal(int width, unsigned int value, int fd)
+dump_hexadecimal(int width, unsigned long value, int fd)
 {
     const char *hexdigits = "0123456789abcdef";
-    char buffer[9];
     int len;
-    if (0xffffffffU < value)
-        return;
+    char buffer[sizeof(unsigned long) * 2 + 1];
     len = 0;
     do {
         buffer[len] = hexdigits[value & 15];
@@ -169,16 +167,38 @@ dump_frame(PyFrameObject *frame, int fd)
    the line "  ...".
  */
 
+static void
+dump_backtrace(int fd, PyThreadState *tstate, int write_header)
+{
+    PyFrameObject *frame;
+    unsigned int depth;
+
+    frame = _PyThreadState_GetFrame(tstate);
+    if (frame == NULL)
+        return;
+
+    if (write_header)
+        PUTS("Traceback (most recent call first):\n", fd);
+    depth = 0;
+    while (frame != NULL) {
+        if (MAX_FRAME_DEPTH <= depth) {
+            PUTS("  ...\n", fd);
+            break;
+        }
+        if (!PyFrame_Check(frame))
+            break;
+        dump_frame(frame, fd);
+        frame = frame->f_back;
+        depth++;
+    }
+}
+
+/* Function used by the signal handler, faulthandler(). */
 void
 faulthandler_dump_backtrace(int fd)
 {
     PyThreadState *tstate;
-    PyFrameObject *frame;
-    unsigned int depth;
     static int running = 0;
-
-    if (!faulthandler_enabled)
-        return;
 
     if (running) {
         /* Error: recursive call, do nothing. It may occurs if Py_FatalError()
@@ -199,24 +219,98 @@ faulthandler_dump_backtrace(int fd)
     if (tstate == NULL)
         goto error;
 
-    frame = _PyThreadState_GetFrame(tstate);
-    if (frame == NULL)
-        goto error;
+    dump_backtrace(fd, tstate, 1);
 
-    PUTS("Traceback (most recent call first):\n", fd);
-    depth = 0;
-    while (frame != NULL) {
-        if (MAX_FRAME_DEPTH <= depth) {
-            PUTS("  ...\n", fd);
-            break;
-        }
-        if (!PyFrame_Check(frame))
-            break;
-        dump_frame(frame, fd);
-        frame = frame->f_back;
-        depth++;
-    }
 error:
     running = 0;
+}
+
+static int
+get_stdout(void)
+{
+    fflush(stdout);
+    return fileno(stdout);
+}
+
+PyObject*
+faulthandler_dump_backtrace_py(PyObject *self)
+{
+    int fd;
+    PyThreadState *tstate;
+
+    fd = get_stdout();
+
+    /* The caller hold the GIL and so PyThreadState_Get() can be used */
+    tstate = PyThreadState_Get();
+    if (tstate == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "Unable to get the thread state");
+        return NULL;
+    }
+    dump_backtrace(fd, tstate, 1);
+    Py_RETURN_NONE;
+}
+
+static void
+write_thread_id(int fd, PyThreadState *tstate,
+                unsigned int local_id, int is_current)
+{
+    if (is_current)
+        PUTS("Current thread #", fd);
+    else
+        PUTS("Thread #", fd);
+    dump_decimal(local_id, fd);
+    PUTS(" (0x", fd);
+    dump_hexadecimal(sizeof(long)*2, (unsigned long)tstate->thread_id, fd);
+    PUTS("):\n", fd);
+}
+
+PyObject*
+faulthandler_dump_backtrace_threads(PyObject *self)
+{
+    int fd;
+    PyInterpreterState *interp;
+    PyThreadState *current_thread, *tstate;
+    int newline;
+    unsigned int local_id;
+
+    fd = get_stdout();
+
+    /* The caller hold the GIL and so PyThreadState_Get() can be used */
+    current_thread = PyThreadState_Get();
+
+    /* Get the current interpreter from the current thread */
+    interp = current_thread->interp;
+
+    tstate = PyInterpreterState_ThreadHead(interp);
+    if (tstate == NULL) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "Unable to get the thread state head");
+        return NULL;
+    }
+
+    /* Count the number of threads */
+    local_id = 0;
+    do
+    {
+        local_id++;
+        tstate = PyThreadState_Next(tstate);
+    } while (tstate != NULL);
+
+    /* Dump the backtrace of each thread */
+    tstate = PyInterpreterState_ThreadHead(interp);
+    newline = 0;
+    do
+    {
+        if (newline)
+            write(fd, "\n", 1);
+        else
+            newline = 1;
+        write_thread_id(fd, tstate, local_id, tstate == current_thread);
+        dump_backtrace(fd, tstate, 0);
+        tstate = PyThreadState_Next(tstate);
+        local_id--;
+    } while (tstate != NULL);
+
+    Py_RETURN_NONE;
 }
 

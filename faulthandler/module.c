@@ -13,12 +13,16 @@ PyDoc_STRVAR(module_doc,
 "faulthandler module.");
 
 static PyMethodDef module_methods[] = {
-    {"enable", (PyCFunction)faulthandler_enable, METH_NOARGS,
+    {"enable", (PyCFunction)faulthandler_enable_py, METH_NOARGS,
      PyDoc_STR("enable(): enable the fault handler")},
     {"disable", (PyCFunction)faulthandler_disable, METH_NOARGS,
      PyDoc_STR("disable(): disable the fault handler")},
     {"isenabled", (PyCFunction)faulthandler_isenabled, METH_NOARGS,
      PyDoc_STR("isenabled()->bool: check if the handler is enabled")},
+    {"dumpbacktrace", (PyCFunction)faulthandler_dump_backtrace_py, METH_NOARGS,
+     PyDoc_STR("dumpbacktrace(): dump the backtrace of the current thread")},
+    {"dumpbacktrace_threads", (PyCFunction)faulthandler_dump_backtrace_threads, METH_NOARGS,
+     PyDoc_STR("dumpbacktrace_threads(): dump the backtrace of all threads")},
     {"sigsegv", faulthandler_sigsegv, METH_VARARGS,
      PyDoc_STR("sigsegv(release_gil=False): raise a SIGSEGV signal")},
     {"sigfpe", (PyCFunction)faulthandler_sigfpe, METH_NOARGS,
