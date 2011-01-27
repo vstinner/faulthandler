@@ -11,6 +11,9 @@ typedef PyOS_sighandler_t _Py_sighandler_t;
 static stack_t stack;
 #endif
 
+/* 2 should be fileno(stderr) */
+#define DEFAULT_FD 2
+
 int faulthandler_enabled = 0;
 
 typedef struct {
@@ -19,6 +22,12 @@ typedef struct {
     const char* name;
     _Py_sighandler_t previous;
 } fault_handler_t;
+
+static struct {
+    int delay;
+    int repeat;
+    int all_threads;
+} fault_alarm;
 
 static int fault_signals[] = {
 #ifdef SIGBUS
@@ -29,7 +38,7 @@ static int fault_signals[] = {
 #endif
     SIGFPE,
     /* define SIGSEGV at the end to make it the default choice if searching the
-       handler fails in faulthandler() */
+       handler fails in faulthandler_fatal_error() */
     SIGSEGV
 };
 #define NFAULT_SIGNALS (sizeof(fault_signals) / sizeof(fault_signals[0]))
@@ -40,10 +49,10 @@ static fault_handler_t fault_handlers[NFAULT_SIGNALS];
    be called when the fault handler exits, because the fault will occur
    again. */
 
-static void
-faulthandler(int signum)
+void
+faulthandler_fatal_error(int signum)
 {
-    const int fd = 2; /* should be fileno(stderr) */
+    const int fd = DEFAULT_FD;
     unsigned int i;
     fault_handler_t *handler;
 
@@ -67,6 +76,36 @@ faulthandler(int signum)
     faulthandler_dump_backtrace(fd);
 }
 
+/*
+ * Handler of the SIGALRM signal: dump the backtrace of the current thread or
+ * of all threads if fault_alarm.all_threads is true. On success, register
+ * itself again if fault_alarm.repeat is true.
+ */
+void
+faulthandler_alarm(int signum)
+{
+    const int fd = DEFAULT_FD;
+    PyThreadState *current_thread;
+
+    if (fault_alarm.all_threads) {
+        /* PyThreadState_Get() doesn't give the state of the current thread if
+           the thread doesn't hold the GIL. Read the thread local storage (TLS)
+           instead: call PyGILState_GetThisThreadState(). */
+        current_thread = PyGILState_GetThisThreadState();
+        if (current_thread == NULL) {
+            /* unable to get the current thread, do nothing */
+            return;
+        }
+        (void)faulthandler_dump_backtrace_threads(fd, current_thread);
+    } else
+        faulthandler_dump_backtrace(fd);
+
+    if (fault_alarm.repeat)
+        alarm(fault_alarm.delay);
+    else
+        alarm(0);
+}
+
 void
 faulthandler_init()
 {
@@ -79,6 +118,7 @@ faulthandler_init()
 static void
 faulthandler_unload(void)
 {
+    faulthandler_cancel_dumpbacktrace_later();
 #ifdef HAVE_SIGALTSTACK
     if (stack.ss_sp != NULL) {
         PyMem_Free(stack.ss_sp);
@@ -135,14 +175,14 @@ faulthandler_enable()
     for (i=0; i < NFAULT_SIGNALS; i++) {
         handler = &fault_handlers[i];
 #ifdef HAVE_SIGACTION
-        action.sa_handler = faulthandler;
+        action.sa_handler = faulthandler_fatal_error;
         sigemptyset(&action.sa_mask);
         action.sa_flags = SA_ONSTACK;
         err = sigaction(handler->signum, &action, &handler->previous);
         if (!err)
             handler->enabled = 1;
 #else
-        handler->previous = signal(handler->signum, faulthandler);
+        handler->previous = signal(handler->signum, faulthandler_fatal_error);
         if (handler->previous != SIG_ERR)
             handler->enabled = 1;
 #endif
@@ -187,5 +227,50 @@ PyObject*
 faulthandler_isenabled(PyObject *self)
 {
     return PyBool_FromLong(faulthandler_enabled);
+}
+
+PyObject*
+faulthandler_dumpbacktrace_later(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+    static char *kwlist[] = {"delay", "repeat", "all_threads", NULL};
+    int delay;
+    PyOS_sighandler_t previous;
+    int repeat = 0;
+    int all_threads = 0;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i|ii:dump_backtrace_later", kwlist,
+        &delay, &repeat, &all_threads))
+        return NULL;
+    if (delay <= 0) {
+        PyErr_SetString(PyExc_ValueError, "delay must be greater than 0");
+        return NULL;
+    }
+
+    previous = signal(SIGALRM, faulthandler_alarm);
+    if (previous == SIG_ERR) {
+        PyErr_SetString(PyExc_RuntimeError, "unable to set SIGALRM handler");
+        return NULL;
+    }
+
+    fault_alarm.delay = delay;
+    fault_alarm.repeat = repeat;
+    fault_alarm.all_threads = all_threads;
+
+    alarm(delay);
+
+    Py_RETURN_NONE;
+}
+
+void
+faulthandler_cancel_dumpbacktrace_later()
+{
+    alarm(0);
+}
+
+PyObject*
+faulthandler_cancel_dumpbacktrace_later_py(PyObject *self)
+{
+    faulthandler_cancel_dumpbacktrace_later();
+    Py_RETURN_NONE;
 }
 

@@ -21,8 +21,20 @@ static PyMethodDef module_methods[] = {
      PyDoc_STR("isenabled()->bool: check if the handler is enabled")},
     {"dumpbacktrace", (PyCFunction)faulthandler_dump_backtrace_py, METH_NOARGS,
      PyDoc_STR("dumpbacktrace(): dump the backtrace of the current thread")},
-    {"dumpbacktrace_threads", (PyCFunction)faulthandler_dump_backtrace_threads, METH_NOARGS,
+    {"dumpbacktrace_threads",
+     (PyCFunction)faulthandler_dump_backtrace_threads_py, METH_NOARGS,
      PyDoc_STR("dumpbacktrace_threads(): dump the backtrace of all threads")},
+    {"dumpbacktrace_later",
+     (PyCFunction)faulthandler_dumpbacktrace_later, METH_VARARGS|METH_KEYWORDS,
+     PyDoc_STR("dumpbacktrace_later(delay, repeat=False, all_threads=False): "
+               "dump the backtrace of the current thread, or of all threads "
+               "if all_threads is True, in delay seconds, or each delay "
+               "seconds if repeat is True.")},
+    {"cancel_dumpbacktrace_later",
+     (PyCFunction)faulthandler_cancel_dumpbacktrace_later_py, METH_NOARGS,
+     PyDoc_STR("cancel_dumpbacktrace_later(): cancel the previous call "
+               "to dumpbacktrace_later().")},
+
     {"sigsegv", faulthandler_sigsegv, METH_VARARGS,
      PyDoc_STR("sigsegv(release_gil=False): raise a SIGSEGV signal")},
     {"sigfpe", (PyCFunction)faulthandler_sigfpe, METH_NOARGS,

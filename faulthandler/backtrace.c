@@ -225,6 +225,12 @@ error:
     running = 0;
 }
 
+/*
+ * Flush the standard output and get the file descriptor of the standard
+ * output.
+ *
+ * WARNING: This function is not signal safe.
+ */
 static int
 get_stdout(void)
 {
@@ -243,7 +249,7 @@ faulthandler_dump_backtrace_py(PyObject *self)
     /* The caller holds the GIL and so PyThreadState_Get() can be used */
     tstate = PyThreadState_Get();
     if (tstate == NULL) {
-        PyErr_SetString(PyExc_RuntimeError, "Unable to get the thread state");
+        PyErr_SetString(PyExc_RuntimeError, "unable to get the thread state");
         return NULL;
     }
     dump_backtrace(fd, tstate, 1);
@@ -264,29 +270,27 @@ write_thread_id(int fd, PyThreadState *tstate,
     PUTS(fd, "):\n");
 }
 
-PyObject*
-faulthandler_dump_backtrace_threads(PyObject *self)
+/*
+ * Dump the backtrace of all threads.
+ *
+ * Return NULL on success, or an error message on error.
+ */
+const char*
+faulthandler_dump_backtrace_threads(int fd, PyThreadState *current_thread)
 {
-    int fd;
     PyInterpreterState *interp;
-    PyThreadState *current_thread, *tstate;
+    PyThreadState *tstate;
     int newline;
     unsigned int local_id;
 
-    fd = get_stdout();
-
-    /* The caller holds the GIL and so PyThreadState_Get() can be used */
-    current_thread = PyThreadState_Get();
-
     /* Get the current interpreter from the current thread */
     interp = current_thread->interp;
+    if (interp == NULL)
+        return "unable to get the interpreter";
 
     tstate = PyInterpreterState_ThreadHead(interp);
-    if (tstate == NULL) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "Unable to get the thread state head");
-        return NULL;
-    }
+    if (tstate == NULL)
+        return "unable to get the thread head state";
 
     /* Count the number of threads */
     local_id = 0;
@@ -311,6 +315,31 @@ faulthandler_dump_backtrace_threads(PyObject *self)
         local_id--;
     } while (tstate != NULL);
 
+    return NULL;
+}
+
+PyObject*
+faulthandler_dump_backtrace_threads_py(PyObject *self)
+{
+    int fd;
+    PyThreadState *current_thread;
+    const char *errmsg;
+
+    fd = get_stdout();
+
+    /* The caller holds the GIL and so PyThreadState_Get() can be used */
+    current_thread = PyThreadState_Get();
+    if (current_thread == NULL) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "unable to get the current thread state");
+        return NULL;
+    }
+
+    errmsg = faulthandler_dump_backtrace_threads(fd, current_thread);
+    if (errmsg != NULL) {
+        PyErr_SetString(PyExc_RuntimeError, errmsg);
+        return NULL;
+    }
     Py_RETURN_NONE;
 }
 

@@ -1,0 +1,25 @@
+ * .enable() and .dumpbacktrace_later() should store fileno(stderr)
+ * .dumpbacktrace() and .dumpbacktrace_threads() should call sys.stdout.flush()
+ * .dumpbacktrace_threads() should be replaced by .dumpbacktrace(all_threads=True)
+ * handle "#ifdef HAVE_SIGACTION" and "#ifdef HAVE_SIGALTSTACK"
+ * write a test for dumpbacktrace_later(), example:
+ * add a function to dimp the backtrace on an arbitrary signal, especially SIGUSR1
+---
+import faulthandler
+import time
+
+def slow_function():
+    for x in range(3):
+        a = time.time()
+        time.sleep(3)
+        b = time.time()
+        print("Real time: %s" % (b-a,))
+        if x == 1:
+            print("cancel")
+            faulthandler.cancel_dumpbacktrace_later()
+            print("cancel--")
+
+faulthandler.dumpbacktrace_later(1, repeat=True, all_threads=True)
+slow_function()
+---
+
