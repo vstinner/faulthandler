@@ -193,52 +193,6 @@ faulthandler_dump_backtrace(int fd, PyThreadState *tstate, int write_header)
     }
 }
 
-/*
- * Call file.flush() and return file.fileno(). Use sys.stdout if file is not
- * set (NULL). Set an exception and return -1 on error.
- */
-static int
-get_fileno(PyObject *file)
-{
-    PyObject *result;
-    long fd_long;
-    long fd;
-
-    if (file == NULL) {
-        file = PySys_GetObject("stdout");
-        if (file == NULL) {
-            PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stdout");
-            return -1;
-        }
-    }
-
-    result = PyObject_CallMethod(file, "fileno", "");
-    if (result == NULL)
-        return -1;
-
-    fd = -1;
-    if (PyInt_Check(result)) {
-        fd_long = PyInt_AsLong(result);
-        if (0 < fd_long && fd_long < INT_MAX)
-            fd = (int)fd_long;
-    }
-    Py_DECREF(result);
-
-    if (fd == -1) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "sys.stdout.fileno() is not a valid file descriptor");
-        return -1;
-    }
-
-    result = PyObject_CallMethod(file, "flush", "");
-    if (result != NULL)
-        Py_DECREF(result);
-    else
-        PyErr_Clear();
-
-    return fd;
-}
-
 static void
 write_thread_id(int fd, PyThreadState *tstate,
                 unsigned int local_id, int is_current)
@@ -308,16 +262,51 @@ faulthandler_dump_backtrace_py(PyObject *self,
     static char *kwlist[] = {"file", "all_threads", NULL};
     PyObject *file = NULL;
     int all_threads = 0;
-    int fd;
     PyThreadState *tstate;
     const char *errmsg;
+    PyObject *result;
+    long fd_long;
+    int fd;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
         "|Oi:dump_backtrace", kwlist,
         &file, &all_threads))
         return NULL;
 
-    fd = get_fileno(file);
+    if (file == NULL) {
+        file = PySys_GetObject("stdout");
+        if (file == NULL) {
+            PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stdout");
+            return NULL;
+        }
+    }
+
+    result = PyObject_CallMethod(file, "fileno", "");
+    if (result == NULL)
+        return NULL;
+
+    fd = -1;
+    if (PyInt_Check(result)) {
+        fd_long = PyInt_AsLong(result);
+        if (0 < fd_long && fd_long < INT_MAX)
+            fd = (int)fd_long;
+    }
+    Py_DECREF(result);
+
+    if (fd == -1) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "file.fileno() is not a valid file descriptor");
+        return NULL;
+    }
+
+    result = PyObject_CallMethod(file, "flush", "");
+    if (result != NULL)
+        Py_DECREF(result);
+    else {
+        /* ignore flush() error */
+        PyErr_Clear();
+    }
+
     if (fd == -1)
         return NULL;
 
