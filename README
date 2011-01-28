@@ -59,10 +59,8 @@ Fault handler state (disabled by default):
 
 Dump the current backtrace:
 
- * dumpbacktrace(file=sys.stdout): dump backtrace of the current thread into
-   file
- * dumpbacktrace_threads(file=sys.stdout): dump backtrace of all threads into
-   file
+ * dumpbacktrace(file=sys.stdout, all_threads=False): dump backtrace of the
+   current thread, or of all threads if all_threads is True, into file
  * dumpbacktrace_later(delay, repeat=False, all_threads=False): dump the
    backtrace of the current thread, or of all threads if all_threads is True,
    in delay seconds, or each delay seconds if repeat is True. It writes the
@@ -98,10 +96,12 @@ Version 1.2 (under development)
 -------------------------------
 
  * Add dumpbacktrace_later() and cancel_dumpbacktrace_later() function
+ * dumpbacktrace() has an optional file argument (default: sys.stdout) and
+   flush the file before writing into it
+ * Replace dumpbacktrace_threads() function by a new dumpbacktrace() argument:
+   dumpbacktrace(all_threads=True)
  * enable() gets the file descriptor of stderr instead of using the file
    descriptor 2
- * dumpbacktrace() and dumpbacktrace_threads() has an optional file argument
-   (default: sys.stdout) and flush the file before writing into it
 
 Version 1.1 (2011-01-03)
 ------------------------

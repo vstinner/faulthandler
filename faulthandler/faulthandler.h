@@ -28,9 +28,8 @@ const char* faulthandler_dump_backtrace_threads(
 void faulthandler_cancel_dumpbacktrace_later(void);
 
 PyObject* faulthandler_dump_backtrace_py(PyObject *self,
-    PyObject *args);
-PyObject* faulthandler_dump_backtrace_threads_py(PyObject *self,
-    PyObject *args);
+    PyObject *args,
+    PyObject *kwargs);
 PyObject* faulthandler_dumpbacktrace_later(PyObject *self,
     PyObject *args,
     PyObject *kwargs);

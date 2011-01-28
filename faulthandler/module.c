@@ -19,13 +19,11 @@ static PyMethodDef module_methods[] = {
      PyDoc_STR("disable(): disable the fault handler")},
     {"isenabled", (PyCFunction)faulthandler_isenabled, METH_NOARGS,
      PyDoc_STR("isenabled()->bool: check if the handler is enabled")},
-    {"dumpbacktrace", faulthandler_dump_backtrace_py, METH_VARARGS,
-     PyDoc_STR("dumpbacktrace(file=sys.stdout): "
-               "dump the backtrace of the current thread into file")},
-    {"dumpbacktrace_threads",
-     faulthandler_dump_backtrace_threads_py, METH_VARARGS,
-     PyDoc_STR("dumpbacktrace_threads(file=sys.stdout): "
-               "dump the backtrace of all threads into file")},
+    {"dumpbacktrace",
+     (PyCFunction)faulthandler_dump_backtrace_py, METH_VARARGS|METH_KEYWORDS,
+     PyDoc_STR("dumpbacktrace(file=sys.stdout, all_threads=False): "
+               "dump the backtrace of the current thread, or of all threads "
+               "if all_threads is True, into file")},
     {"dumpbacktrace_later",
      (PyCFunction)faulthandler_dumpbacktrace_later, METH_VARARGS|METH_KEYWORDS,
      PyDoc_STR("dumpbacktrace_later(delay, repeat=False, all_threads=False): "

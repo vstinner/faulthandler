@@ -271,30 +271,6 @@ get_fileno(PyObject *file)
     return fd;
 }
 
-PyObject*
-faulthandler_dump_backtrace_py(PyObject *self, PyObject *args)
-{
-    PyObject *file = NULL;
-    int fd;
-    PyThreadState *tstate;
-
-    if (!PyArg_ParseTuple(args, "|O:dump_backtrace", &file))
-        return NULL;
-
-    fd = get_fileno(file);
-    if (fd == -1)
-        return NULL;
-
-    /* The caller holds the GIL and so PyThreadState_Get() can be used */
-    tstate = PyThreadState_Get();
-    if (tstate == NULL) {
-        PyErr_SetString(PyExc_RuntimeError, "unable to get the thread state");
-        return NULL;
-    }
-    dump_backtrace(fd, tstate, 1);
-    Py_RETURN_NONE;
-}
-
 static void
 write_thread_id(int fd, PyThreadState *tstate,
                 unsigned int local_id, int is_current)
@@ -358,14 +334,19 @@ faulthandler_dump_backtrace_threads(int fd, PyThreadState *current_thread)
 }
 
 PyObject*
-faulthandler_dump_backtrace_threads_py(PyObject *self, PyObject *args)
+faulthandler_dump_backtrace_py(PyObject *self,
+                               PyObject *args, PyObject *kwargs)
 {
+    static char *kwlist[] = {"file", "all_threads", NULL};
     PyObject *file = NULL;
+    int all_threads = 0;
     int fd;
-    PyThreadState *current_thread;
+    PyThreadState *tstate;
     const char *errmsg;
 
-    if (!PyArg_ParseTuple(args, "|O:dump_backtrace_threads", &file))
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs,
+        "|Oi:dump_backtrace", kwlist,
+        &file, &all_threads))
         return NULL;
 
     fd = get_fileno(file);
@@ -373,17 +354,22 @@ faulthandler_dump_backtrace_threads_py(PyObject *self, PyObject *args)
         return NULL;
 
     /* The caller holds the GIL and so PyThreadState_Get() can be used */
-    current_thread = PyThreadState_Get();
-    if (current_thread == NULL) {
+    tstate = PyThreadState_Get();
+    if (tstate == NULL) {
         PyErr_SetString(PyExc_RuntimeError,
                         "unable to get the current thread state");
         return NULL;
     }
 
-    errmsg = faulthandler_dump_backtrace_threads(fd, current_thread);
-    if (errmsg != NULL) {
-        PyErr_SetString(PyExc_RuntimeError, errmsg);
-        return NULL;
+    if (all_threads) {
+        errmsg = faulthandler_dump_backtrace_threads(fd, tstate);
+        if (errmsg != NULL) {
+            PyErr_SetString(PyExc_RuntimeError, errmsg);
+            return NULL;
+        }
+    }
+    else {
+        dump_backtrace(fd, tstate, 1);
     }
     Py_RETURN_NONE;
 }
