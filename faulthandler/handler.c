@@ -11,10 +11,11 @@ typedef PyOS_sighandler_t _Py_sighandler_t;
 static stack_t stack;
 #endif
 
-/* 2 should be fileno(stderr) */
-#define DEFAULT_FD 2
-
 int faulthandler_enabled = 0;
+
+/* fileno(stderr) should be 2: anyway, the value is replaced in
+ * faulthandler_enable() */
+static int fatal_error_fd = 2;
 
 typedef struct {
     int signum;
@@ -24,6 +25,7 @@ typedef struct {
 } fault_handler_t;
 
 static struct {
+    int fd;
     int delay;
     int repeat;
     int all_threads;
@@ -52,7 +54,7 @@ static fault_handler_t fault_handlers[NFAULT_SIGNALS];
 void
 faulthandler_fatal_error(int signum)
 {
-    const int fd = DEFAULT_FD;
+    const int fd = fatal_error_fd;
     unsigned int i;
     fault_handler_t *handler;
 
@@ -84,10 +86,12 @@ faulthandler_fatal_error(int signum)
 void
 faulthandler_alarm(int signum)
 {
-    const int fd = DEFAULT_FD;
+    int ok;
     PyThreadState *current_thread;
 
     if (fault_alarm.all_threads) {
+        const char* errmsg;
+
         /* PyThreadState_Get() doesn't give the state of the current thread if
            the thread doesn't hold the GIL. Read the thread local storage (TLS)
            instead: call PyGILState_GetThisThreadState(). */
@@ -96,11 +100,16 @@ faulthandler_alarm(int signum)
             /* unable to get the current thread, do nothing */
             return;
         }
-        (void)faulthandler_dump_backtrace_threads(fd, current_thread);
-    } else
-        faulthandler_dump_backtrace(fd);
+        errmsg = faulthandler_dump_backtrace_threads(fault_alarm.fd,
+                                                     current_thread);
+        ok = (errmsg == NULL);
+    }
+    else {
+        faulthandler_dump_backtrace(fault_alarm.fd);
+        ok = 1;
+    }
 
-    if (fault_alarm.repeat)
+    if (ok && fault_alarm.repeat)
         alarm(fault_alarm.delay);
     else
         alarm(0);
@@ -127,8 +136,15 @@ faulthandler_unload(void)
 #endif
 }
 
-void
-faulthandler_enable()
+int
+get_stderr()
+{
+    fflush(stderr);
+    return fileno(stderr);
+}
+
+PyObject*
+faulthandler_enable(PyObject *self)
 {
     unsigned int i;
     fault_handler_t *handler;
@@ -138,7 +154,16 @@ faulthandler_enable()
 #endif
 
     if (faulthandler_enabled)
-        return;
+        Py_RETURN_NONE;
+
+    fatal_error_fd = get_stderr();
+    if (fatal_error_fd == -1) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "unable to get the file descriptor "
+                        "of the standard error");
+        return NULL;
+    }
+
     faulthandler_enabled = 1;
 
 #ifdef HAVE_SIGALTSTACK
@@ -187,13 +212,6 @@ faulthandler_enable()
             handler->enabled = 1;
 #endif
     }
-    return;
-}
-
-PyObject*
-faulthandler_enable_py(PyObject *self)
-{
-    faulthandler_enable();
     Py_RETURN_NONE;
 }
 
@@ -237,12 +255,21 @@ faulthandler_dumpbacktrace_later(PyObject *self, PyObject *args, PyObject *kwarg
     PyOS_sighandler_t previous;
     int repeat = 0;
     int all_threads = 0;
+    int fd;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i|ii:dump_backtrace_later", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs,
+        "i|ii:dump_backtrace_later", kwlist,
         &delay, &repeat, &all_threads))
         return NULL;
     if (delay <= 0) {
         PyErr_SetString(PyExc_ValueError, "delay must be greater than 0");
+        return NULL;
+    }
+
+    fd = get_stderr();
+    if (fd == -1) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "unable to get stderr file descriptor");
         return NULL;
     }
 
@@ -252,6 +279,7 @@ faulthandler_dumpbacktrace_later(PyObject *self, PyObject *args, PyObject *kwarg
         return NULL;
     }
 
+    fault_alarm.fd = fd;
     fault_alarm.delay = delay;
     fault_alarm.repeat = repeat;
     fault_alarm.all_threads = all_threads;

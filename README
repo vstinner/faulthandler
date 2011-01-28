@@ -95,6 +95,8 @@ Changelog
 Version 1.2 (under development)
 -------------------------------
 
+ * enable() stores the file descriptor of stderr instead of using the file
+   descriptor 2
  * Add dumpbacktrace_later() and cancel_dumpbacktrace_later() function
 
 Version 1.1 (2011-01-03)

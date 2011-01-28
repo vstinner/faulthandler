@@ -17,8 +17,7 @@ void faulthandler_fatal_error(
 void faulthandler_alarm(
     int signum);
 
-void faulthandler_enable(void);
-PyObject* faulthandler_enable_py(PyObject *self);
+PyObject* faulthandler_enable(PyObject *self);
 PyObject* faulthandler_disable(PyObject *self);
 PyObject* faulthandler_isenabled(PyObject *self);
 
