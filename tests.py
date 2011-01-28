@@ -4,6 +4,7 @@ import subprocess
 import sys
 import unittest
 import re
+import tempfile
 
 try:
     skipIf = unittest.skipIf
@@ -108,34 +109,57 @@ class FaultHandlerTests(unittest.TestCase):
         faulthandler.disable()
         self.assertFalse(faulthandler.isenabled())
 
-    def test_dumpbacktrace(self):
-        stdout, stderr = self.get_output((
+    def check_dumpbacktrace(self, filename):
+        code = (
             'import faulthandler',
             '',
             'def funcB():',
-            '    faulthandler.dumpbacktrace()',
+            '    if %r:' % (bool(filename),),
+            '        with open(%r, "wb") as fp:' % (filename,),
+            '            faulthandler.dumpbacktrace(fp)',
+            '    else:',
+            '        faulthandler.dumpbacktrace()',
             '',
             'def funcA():',
             '    funcB()',
             '',
             'funcA()',
-        ))
-        trace = stdout.splitlines()
-        self.assertEqual(trace, [
+        )
+        if filename:
+            lineno = 6
+        else:
+            lineno = 8
+        expected = [
             'Traceback (most recent call first):',
-            '  File "<string>", line 4 in funcB',
-            '  File "<string>", line 7 in funcA',
-            '  File "<string>", line 9 in <module>'
-        ])
+            '  File "<string>", line %s in funcB' % lineno,
+            '  File "<string>", line 11 in funcA',
+            '  File "<string>", line 13 in <module>'
+        ]
+        stdout, stderr = self.get_output(code)
+        if filename:
+            with open(filename, "rb") as fp:
+                stdout = fp.read()
+                stdout = stdout.decode('ascii', 'backslashreplace')
+        trace = stdout.splitlines()
+        self.assertEqual(trace, expected)
 
-    def test_dumpbacktrace_threads(self):
+    def test_dumpbacktrace(self):
+        self.check_dumpbacktrace(None)
+        with tempfile.TemporaryFile() as f:
+            self.check_dumpbacktrace(f.name)
+
+    def check_dumpbacktrace_threads(self, filename):
         stdout, stderr = self.get_output((
             'import faulthandler',
             'from threading import Thread',
             'import time',
             '',
             'def dump():',
-            '    faulthandler.dumpbacktrace_threads()',
+            '    if %r:' % (bool(filename),),
+            '        with open(%r, "wb") as fp:' % (filename,),
+            '            faulthandler.dumpbacktrace_threads(fp)',
+            '    else:',
+            '        faulthandler.dumpbacktrace_threads()',
             '',
             'class Waiter(Thread):',
             '    def __init__(self):',
@@ -155,18 +179,27 @@ class FaultHandlerTests(unittest.TestCase):
         ))
         # Normalize newlines for Windows
         lines = '\n'.join(stdout.splitlines())
-        regex = (
-            'Thread #2 \\(0x[0-9a-f]+\\):\n'
-            '  File "<string>", line 15 in run\n'
-            '  File ".*threading.py", line [0-9]+ in __?bootstrap_inner\n'
-            '  File ".*threading.py", line [0-9]+ in __?bootstrap\n'
-            '\n'
-            'Current thread #1 \\(0x[0-9a-f]+\\):\n'
-            '  File "<string>", line 6 in dump\n'
-            '  File "<string>", line 20 in <module>'
-        )
+        if filename:
+            lineno = 8
+        else:
+            lineno = 10
+        regex = '\n'.join((
+            'Thread #2 \\(0x[0-9a-f]+\\):',
+            '  File "<string>", line 19 in run',
+            '  File ".*threading.py", line [0-9]+ in __?bootstrap_inner',
+            '  File ".*threading.py", line [0-9]+ in __?bootstrap',
+            '',
+            'Current thread #1 \\(0x[0-9a-f]+\\):',
+            '  File "<string>", line %s in dump' % lineno,
+            '  File "<string>", line 24 in <module>',
+        ))
         self.assertTrue(re.match(regex, lines),
                         "<<<%s>>> doesn't match" % lines)
+
+    def test_dumpbacktrace_threads(self):
+        self.check_dumpbacktrace_threads(None)
+        with tempfile.TemporaryFile() as tmp:
+            self.check_dumpbacktrace_threads(tmp.name)
 
 
 if __name__ == "__main__":

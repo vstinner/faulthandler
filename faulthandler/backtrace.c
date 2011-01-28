@@ -226,25 +226,64 @@ error:
 }
 
 /*
- * Flush the standard output and get the file descriptor of the standard
- * output.
- *
- * WARNING: This function is not signal safe.
+ * Call file.flush() and return file.fileno(). Use sys.stdout if file is not
+ * set (NULL). Set an exception and return -1 on error.
  */
 static int
-get_stdout(void)
+get_fileno(PyObject *file)
 {
-    fflush(stdout);
-    return fileno(stdout);
+    PyObject *result;
+    long fd_long;
+    long fd;
+
+    if (file == NULL) {
+        file = PySys_GetObject("stdout");
+        if (file == NULL) {
+            PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stdout");
+            return -1;
+        }
+    }
+
+    result = PyObject_CallMethod(file, "fileno", "");
+    if (result == NULL)
+        return -1;
+
+    fd = -1;
+    if (PyInt_Check(result)) {
+        fd_long = PyInt_AsLong(result);
+        if (0 < fd_long && fd_long < INT_MAX)
+            fd = (int)fd_long;
+    }
+    Py_DECREF(result);
+
+    if (fd == -1) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "sys.stdout.fileno() is not a valid file descriptor");
+        return -1;
+    }
+
+    result = PyObject_CallMethod(file, "flush", "");
+    if (result != NULL)
+        Py_DECREF(result);
+    else
+        PyErr_Clear();
+
+    return fd;
 }
 
 PyObject*
-faulthandler_dump_backtrace_py(PyObject *self)
+faulthandler_dump_backtrace_py(PyObject *self, PyObject *args)
 {
+    PyObject *file = NULL;
     int fd;
     PyThreadState *tstate;
 
-    fd = get_stdout();
+    if (!PyArg_ParseTuple(args, "|O:dump_backtrace", &file))
+        return NULL;
+
+    fd = get_fileno(file);
+    if (fd == -1)
+        return NULL;
 
     /* The caller holds the GIL and so PyThreadState_Get() can be used */
     tstate = PyThreadState_Get();
@@ -319,13 +358,19 @@ faulthandler_dump_backtrace_threads(int fd, PyThreadState *current_thread)
 }
 
 PyObject*
-faulthandler_dump_backtrace_threads_py(PyObject *self)
+faulthandler_dump_backtrace_threads_py(PyObject *self, PyObject *args)
 {
+    PyObject *file = NULL;
     int fd;
     PyThreadState *current_thread;
     const char *errmsg;
 
-    fd = get_stdout();
+    if (!PyArg_ParseTuple(args, "|O:dump_backtrace_threads", &file))
+        return NULL;
+
+    fd = get_fileno(NULL);
+    if (fd == -1)
+        return NULL;
 
     /* The caller holds the GIL and so PyThreadState_Get() can be used */
     current_thread = PyThreadState_Get();

@@ -1,5 +1,4 @@
  * add a function to dump the backtrace on an arbitrary signal, especially SIGUSR1
- * .dumpbacktrace() and .dumpbacktrace_threads() should call sys.stdout.flush()
  * .dumpbacktrace_threads() should be replaced by .dumpbacktrace(all_threads=True)
  * handle "#ifdef HAVE_SIGACTION" and "#ifdef HAVE_SIGALTSTACK"
  * write a test for dumpbacktrace_later(), example:

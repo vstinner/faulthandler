@@ -112,7 +112,7 @@ faulthandler_alarm(int signum)
     if (ok && fault_alarm.repeat)
         alarm(fault_alarm.delay);
     else
-        alarm(0);
+        faulthandler_cancel_dumpbacktrace_later();
 }
 
 void

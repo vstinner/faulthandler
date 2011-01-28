@@ -9,9 +9,9 @@ on the stack, even on stack overflow.
 
 Import the module and call faulthandler.enable() to enable the fault handler.
 
-The Python backtrace is written to the file descriptor 2 which is supposed to
-be the standard error stream. Start your graphical applications in a terminal
-and run your server in foreground to see the backtrace.
+The Python backtrace is written to the standard error stream. Start your
+graphical applications in a terminal and run your server in foreground to see
+the backtrace.
 
 Website: https://github.com/haypo/faulthandler/wiki/
 
@@ -59,8 +59,10 @@ Fault handler state (disabled by default):
 
 Dump the current backtrace:
 
- * dumpbacktrace(): dump backtrace of the current thread into stdout
- * dumpbacktrace_threads(): dump backtrace of all threads into stdout
+ * dumpbacktrace(file=sys.stdout): dump backtrace of the current thread into
+   file
+ * dumpbacktrace_threads(file=sys.stdout): dump backtrace of all threads into
+   file
  * dumpbacktrace_later(delay, repeat=False, all_threads=False): dump the
    backtrace of the current thread, or of all threads if all_threads is True,
    in delay seconds, or each delay seconds if repeat is True. It writes the
@@ -95,9 +97,11 @@ Changelog
 Version 1.2 (under development)
 -------------------------------
 
- * enable() stores the file descriptor of stderr instead of using the file
-   descriptor 2
  * Add dumpbacktrace_later() and cancel_dumpbacktrace_later() function
+ * enable() gets the file descriptor of stderr instead of using the file
+   descriptor 2
+ * dumpbacktrace() and dumpbacktrace_threads() has an optional file argument
+   (default: sys.stdout) and flush the file before writing into it
 
 Version 1.1 (2011-01-03)
 ------------------------
