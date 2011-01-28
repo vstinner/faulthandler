@@ -57,6 +57,7 @@ faulthandler_fatal_error(int signum)
     const int fd = fatal_error_fd;
     unsigned int i;
     fault_handler_t *handler;
+    PyThreadState *tstate;
 
     /* restore the previous handler */
     for (i=0; i < NFAULT_SIGNALS; i++) {
@@ -75,7 +76,19 @@ faulthandler_fatal_error(int signum)
     PUTS(fd, handler->name);
     PUTS(fd, "\n\n");
 
-    faulthandler_dump_backtrace(fd);
+    /* SIGSEGV, SIGFPE, SIGBUS and SIGILL are synchronous signals and so are
+       delivered to the thread that caused the fault. Get the Python thread
+       state of the current thread.
+
+       PyThreadState_Get() doesn't give the state of the thread that caused the
+       fault if the thread released the GIL, and so this function cannot be
+       used. Read the thread local storage (TLS) instead: call
+       PyGILState_GetThisThreadState(). */
+    tstate = PyGILState_GetThisThreadState();
+    if (tstate == NULL)
+        return;
+
+    faulthandler_dump_backtrace(fd, tstate, 1);
 }
 
 /*
@@ -87,25 +100,25 @@ void
 faulthandler_alarm(int signum)
 {
     int ok;
-    PyThreadState *current_thread;
+    PyThreadState *tstate;
+
+    /* PyThreadState_Get() doesn't give the state of the current thread if
+       the thread doesn't hold the GIL. Read the thread local storage (TLS)
+       instead: call PyGILState_GetThisThreadState(). */
+    tstate = PyGILState_GetThisThreadState();
+    if (tstate == NULL) {
+        /* unable to get the current thread, do nothing */
+        return;
+    }
 
     if (fault_alarm.all_threads) {
         const char* errmsg;
 
-        /* PyThreadState_Get() doesn't give the state of the current thread if
-           the thread doesn't hold the GIL. Read the thread local storage (TLS)
-           instead: call PyGILState_GetThisThreadState(). */
-        current_thread = PyGILState_GetThisThreadState();
-        if (current_thread == NULL) {
-            /* unable to get the current thread, do nothing */
-            return;
-        }
-        errmsg = faulthandler_dump_backtrace_threads(fault_alarm.fd,
-                                                     current_thread);
+        errmsg = faulthandler_dump_backtrace_threads(fault_alarm.fd, tstate);
         ok = (errmsg == NULL);
     }
     else {
-        faulthandler_dump_backtrace(fault_alarm.fd);
+        faulthandler_dump_backtrace(fault_alarm.fd, tstate, 1);
         ok = 1;
     }
 

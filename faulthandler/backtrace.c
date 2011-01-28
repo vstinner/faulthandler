@@ -167,8 +167,8 @@ dump_frame(int fd, PyFrameObject *frame)
    the line "  ...".
  */
 
-static void
-dump_backtrace(int fd, PyThreadState *tstate, int write_header)
+void
+faulthandler_dump_backtrace(int fd, PyThreadState *tstate, int write_header)
 {
     PyFrameObject *frame;
     unsigned int depth;
@@ -191,38 +191,6 @@ dump_backtrace(int fd, PyThreadState *tstate, int write_header)
         frame = frame->f_back;
         depth++;
     }
-}
-
-/* Function used by the signal handler, faulthandler(). */
-void
-faulthandler_dump_backtrace(int fd)
-{
-    PyThreadState *tstate;
-    static int running = 0;
-
-    if (running) {
-        /* Error: recursive call, do nothing. It may occurs if Py_FatalError()
-           is called (eg. by find_key()). */
-        return;
-    }
-    running = 1;
-
-    /* SIGSEGV, SIGFPE, SIGBUS and SIGILL are synchronous signals and so are
-       delivered to the thread that caused the fault. Get the Python thread
-       state of the current thread.
-
-       PyThreadState_Get() doesn't give the state of the thread that caused the
-       fault if the thread released the GIL, and so this function cannot be
-       used. Read the thread local storage (TLS) instead: call
-       PyGILState_GetThisThreadState(). */
-    tstate = PyGILState_GetThisThreadState();
-    if (tstate == NULL)
-        goto error;
-
-    dump_backtrace(fd, tstate, 1);
-
-error:
-    running = 0;
 }
 
 /*
@@ -325,7 +293,7 @@ faulthandler_dump_backtrace_threads(int fd, PyThreadState *current_thread)
         else
             newline = 1;
         write_thread_id(fd, tstate, local_id, tstate == current_thread);
-        dump_backtrace(fd, tstate, 0);
+        faulthandler_dump_backtrace(fd, tstate, 0);
         tstate = PyThreadState_Next(tstate);
         local_id--;
     } while (tstate != NULL);
@@ -369,7 +337,7 @@ faulthandler_dump_backtrace_py(PyObject *self,
         }
     }
     else {
-        dump_backtrace(fd, tstate, 1);
+        faulthandler_dump_backtrace(fd, tstate, 1);
     }
     Py_RETURN_NONE;
 }
