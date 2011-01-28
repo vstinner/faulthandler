@@ -368,7 +368,7 @@ faulthandler_dump_backtrace_threads_py(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "|O:dump_backtrace_threads", &file))
         return NULL;
 
-    fd = get_fileno(NULL);
+    fd = get_fileno(file);
     if (fd == -1)
         return NULL;
 

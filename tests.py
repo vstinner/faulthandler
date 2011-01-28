@@ -177,6 +177,10 @@ class FaultHandlerTests(unittest.TestCase):
             'waiter.stop = True',
             'waiter.join()',
         ))
+        if filename:
+            with open(filename, "rb") as fp:
+                stdout = fp.read()
+                stdout = stdout.decode('ascii', 'backslashreplace')
         # Normalize newlines for Windows
         lines = '\n'.join(stdout.splitlines())
         if filename:
