@@ -205,7 +205,8 @@ class FaultHandlerTests(unittest.TestCase):
         with tempfile.TemporaryFile() as tmp:
             self.check_dumpbacktrace_threads(tmp.name)
 
-    def check_dumpbacktrace_later(self, repeat, cancel, all_threads):
+    def _check_dumpbacktrace_later(self, repeat, cancel,
+                                   filename, all_threads):
         sys.stdout.write("*")
         sys.stdout.flush()
         code = (
@@ -239,11 +240,23 @@ class FaultHandlerTests(unittest.TestCase):
             '',
             'repeat = %s' % repeat,
             'cancel = %s' % cancel,
-            'faulthandler.dumpbacktrace_later(1, repeat=repeat, all_threads=%s)' % all_threads,
+            'if %s:' % bool(filename),
+            '    file = open(%r, "wb")' % filename,
+            'else:',
+            '    file = None',
+            'faulthandler.dumpbacktrace_later(1, ',
+            '    repeat=repeat, all_threads=%s, file=file)' % all_threads,
             'slow_function(repeat, cancel)',
+            'if file is not None:',
+            '    file.close()',
         )
         stdout, stderr = self.get_output(code)
-        trace = stderr
+        if filename:
+            with open(filename, "rb") as fp:
+                trace = fp.read()
+                trace = trace.decode('ascii', 'backslashreplace')
+        else:
+            trace = stderr
         if all_threads:
             trace = re.sub(
                 r'Current thread #1 \(0x[0-9a-f]+\)',
@@ -252,35 +265,44 @@ class FaultHandlerTests(unittest.TestCase):
         trace = trace.splitlines()
 
         if all_threads:
-            expected = [
-                'Current thread #1 (...):',
-                '  File "<string>", line 12 in slow_function',
-                '  File "<string>", line 32 in <module>']
+            expected = ['Current thread #1 (...):']
         else:
-            expected = [
-                'Traceback (most recent call first):',
-                '  File "<string>", line 12 in slow_function',
-                '  File "<string>", line 32 in <module>']
+            expected = ['Traceback (most recent call first):']
+        expected.extend((
+            '  File "<string>", line 12 in slow_function',
+            '  File "<string>", line 37 in <module>'))
         if repeat:
             if cancel:
                 expected *= 2
             else:
                 expected *= 3
         self.assertEqual(trace, expected,
-                         "%r != %r: repeat=%s, cancel=%s, all_threads=%s"
-                         % (trace, expected, repeat, cancel, all_threads))
+                         "%r != %r: repeat=%s, cancel=%s, use_filename=%s, all_threads=%s"
+                         % (trace, expected, repeat, cancel, bool(filename), all_threads))
+
+    def check_dumpbacktrace_later(self, repeat=False, cancel=False,
+                                  all_threads=False, filename=False):
+        if filename:
+            with tempfile.TemporaryFile() as f:
+                self._check_dumpbacktrace_later(repeat, cancel, f.name, all_threads)
+        else:
+            self._check_dumpbacktrace_later(repeat, cancel, None, all_threads)
 
     def test_dumpbacktrace_later(self):
-        for all_threads in (False, True):
-            # don't repeat
-            self.check_dumpbacktrace_later(False, False, all_threads)
+        # don't repeat
+        self.check_dumpbacktrace_later()
 
-            # repeat
-            self.check_dumpbacktrace_later(True, False, all_threads)
+        # repeat
+        self.check_dumpbacktrace_later(repeat=True)
 
-            # repeat and cancel
-            self.check_dumpbacktrace_later(True, True, all_threads)
+        # repeat and cancel
+        self.check_dumpbacktrace_later(repeat=True, cancel=True)
 
+        # all threads (don't repeat)
+        self.check_dumpbacktrace_later(all_threads=True)
+
+        # use a file (don't repeat)
+        self.check_dumpbacktrace_later(filename=True)
 
 if __name__ == "__main__":
     unittest.main()

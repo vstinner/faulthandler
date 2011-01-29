@@ -26,7 +26,7 @@ static PyMethodDef module_methods[] = {
                "if all_threads is True, into file")},
     {"dumpbacktrace_later",
      (PyCFunction)faulthandler_dumpbacktrace_later, METH_VARARGS|METH_KEYWORDS,
-     PyDoc_STR("dumpbacktrace_later(delay, repeat=False, all_threads=False): "
+     PyDoc_STR("dumpbacktrace_later(delay, repeat=False, file=sys.stderr, all_threads=False): "
                "dump the backtrace of the current thread, or of all threads "
                "if all_threads is True, in delay seconds, or each delay "
                "seconds if repeat is True.")},

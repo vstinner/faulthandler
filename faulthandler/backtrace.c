@@ -255,6 +255,41 @@ faulthandler_dump_backtrace_threads(int fd, PyThreadState *current_thread)
     return NULL;
 }
 
+int
+faulthandler_get_fileno(PyObject *file)
+{
+    PyObject *result;
+    long fd_long;
+    int fd;
+
+    result = PyObject_CallMethod(file, "fileno", "");
+    if (result == NULL)
+        return -1;
+
+    fd = -1;
+    if (PyInt_Check(result)) {
+        fd_long = PyInt_AsLong(result);
+        if (0 < fd_long && fd_long < INT_MAX)
+            fd = (int)fd_long;
+    }
+    Py_DECREF(result);
+
+    if (fd == -1) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "file.fileno() is not a valid file descriptor");
+        return -1;
+    }
+
+    result = PyObject_CallMethod(file, "flush", "");
+    if (result != NULL)
+        Py_DECREF(result);
+    else {
+        /* ignore flush() error */
+        PyErr_Clear();
+    }
+    return fd;
+}
+
 PyObject*
 faulthandler_dump_backtrace_py(PyObject *self,
                                PyObject *args, PyObject *kwargs)
@@ -264,8 +299,6 @@ faulthandler_dump_backtrace_py(PyObject *self,
     int all_threads = 0;
     PyThreadState *tstate;
     const char *errmsg;
-    PyObject *result;
-    long fd_long;
     int fd;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
@@ -281,32 +314,7 @@ faulthandler_dump_backtrace_py(PyObject *self,
         }
     }
 
-    result = PyObject_CallMethod(file, "fileno", "");
-    if (result == NULL)
-        return NULL;
-
-    fd = -1;
-    if (PyInt_Check(result)) {
-        fd_long = PyInt_AsLong(result);
-        if (0 < fd_long && fd_long < INT_MAX)
-            fd = (int)fd_long;
-    }
-    Py_DECREF(result);
-
-    if (fd == -1) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "file.fileno() is not a valid file descriptor");
-        return NULL;
-    }
-
-    result = PyObject_CallMethod(file, "flush", "");
-    if (result != NULL)
-        Py_DECREF(result);
-    else {
-        /* ignore flush() error */
-        PyErr_Clear();
-    }
-
+    fd = faulthandler_get_fileno(file);
     if (fd == -1)
         return NULL;
 

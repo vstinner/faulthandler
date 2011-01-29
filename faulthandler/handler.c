@@ -25,6 +25,7 @@ typedef struct {
 } fault_handler_t;
 
 static struct {
+    PyObject *file;
     int fd;
     int delay;
     int repeat;
@@ -263,28 +264,34 @@ faulthandler_isenabled(PyObject *self)
 PyObject*
 faulthandler_dumpbacktrace_later(PyObject *self, PyObject *args, PyObject *kwargs)
 {
-    static char *kwlist[] = {"delay", "repeat", "all_threads", NULL};
+    static char *kwlist[] = {"delay", "repeat", "file", "all_threads", NULL};
     int delay;
     PyOS_sighandler_t previous;
     int repeat = 0;
+    PyObject *file = NULL;
     int all_threads = 0;
     int fd;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
-        "i|ii:dump_backtrace_later", kwlist,
-        &delay, &repeat, &all_threads))
+        "i|iOi:dump_backtrace_later", kwlist,
+        &delay, &repeat, &file, &all_threads))
         return NULL;
     if (delay <= 0) {
         PyErr_SetString(PyExc_ValueError, "delay must be greater than 0");
         return NULL;
     }
 
-    fd = get_stderr();
-    if (fd == -1) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "unable to get stderr file descriptor");
-        return NULL;
+    if (file == NULL || file == Py_None) {
+        file = PySys_GetObject("stderr");
+        if (file == NULL) {
+            PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stderr");
+            return NULL;
+        }
     }
+
+    fd = faulthandler_get_fileno(file);
+    if (fd == -1)
+        return NULL;
 
     previous = signal(SIGALRM, faulthandler_alarm);
     if (previous == SIG_ERR) {
@@ -292,6 +299,8 @@ faulthandler_dumpbacktrace_later(PyObject *self, PyObject *args, PyObject *kwarg
         return NULL;
     }
 
+    Py_INCREF(file);
+    fault_alarm.file = file;
     fault_alarm.fd = fd;
     fault_alarm.delay = delay;
     fault_alarm.repeat = repeat;
@@ -305,6 +314,7 @@ faulthandler_dumpbacktrace_later(PyObject *self, PyObject *args, PyObject *kwarg
 void
 faulthandler_cancel_dumpbacktrace_later()
 {
+    Py_CLEAR(fault_alarm.file);
     alarm(0);
 }
 
