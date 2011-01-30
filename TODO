@@ -1,3 +1,7 @@
- * add a function to dump the backtrace on an arbitrary signal, especially SIGUSR1
- * handle "#ifdef HAVE_SIGACTION" and "#ifdef HAVE_SIGALTSTACK"
  * use sys.stderr or sys.stdout by default?
+ * add a function to dump the backtrace on an arbitrary signal, especially
+   SIGUSR1
+ * handle "#ifdef HAVE_SIGACTION" and "#ifdef HAVE_SIGALTSTACK"
+ * disable handlers at fork?
+ * what about child processes?
+

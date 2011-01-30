@@ -9,6 +9,13 @@ on the stack, even on stack overflow.
 
 Import the module and call faulthandler.enable() to enable the fault handler.
 
+The fault handler is called on catastrophic cases and so it can only use
+signal-safe functions (eg. it doesn't allocate memory on the heap). That's why
+the backtrace is limited: it only supports ASCII encoding (use the
+backslashreplace error handler for non-ASCII characters) and it doesn't print
+the source code in the backtrace (only the filename, the function name and the
+line number).
+
 The Python backtrace is written to the standard error stream. Start your
 graphical applications in a terminal and run your server in foreground to see
 the backtrace.
@@ -61,12 +68,12 @@ Dump the current backtrace:
 
  * dumpbacktrace(file=sys.stdout, all_threads=False): dump backtrace of the
    current thread, or of all threads if all_threads is True, into file
- * dumpbacktrace_later(delay, repeat=False, all_threads=False): dump the
-   backtrace of the current thread, or of all threads if all_threads is True,
-   in delay seconds, or each delay seconds if repeat is True. It writes the
-   backtrace(s) into the file descriptor 2 which is supposed to be stderr. If
-   the function is called twice, the new call replaces previous parameters.
-   Call cancel_dumpbacktrace_later() to call the next request.
+ * dumpbacktrace_later(delay, repeat=False, file=sys.stderr, all_threads=False):
+   dump the backtrace of the current thread, or of all threads if all_threads
+   is True, in delay seconds, or each delay seconds if repeat is True. It
+   writes the backtrace(s) into the file descriptor 2 which is supposed to be
+   stderr. If the function is called twice, the new call replaces previous
+   parameters. Call cancel_dumpbacktrace_later() to call the next request.
  * cancel_dumpbacktrace_later(): cancel the previous call to
    dumpbacktrace_later()
 
