@@ -128,6 +128,7 @@ Version 1.0 (2010-12-24)
 Status
 ======
 
+ * 2011-01-31: Tested with Python 2.5, 2.6, 2.7, 3.1 and 3.2 on Debian Sid
  * 2010-12-24: Tested with Python 2.6, 3.1 and 3.2 on Debian Sid
  * 2010-12-24: Tested with Python 2.6 and 3.1 on Windows XP
 

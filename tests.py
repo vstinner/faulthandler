@@ -24,6 +24,14 @@ except AttributeError:
             return wrapper
         return decorator
 
+def decode_output(output):
+    return output.decode('ascii', 'backslashreplace')
+
+def read_file(filename):
+    with open(filename, "rb") as fp:
+        output = fp.read()
+    return decode_output(output)
+
 class FaultHandlerTests(unittest.TestCase):
     def _get_output(self, code, want_stderr):
         code = '\n'.join(code)
@@ -39,8 +47,7 @@ class FaultHandlerTests(unittest.TestCase):
             output = stderr
         else:
             output = stdout
-        output = output.decode('ascii', 'backslashreplace')
-        return output
+        return decode_output(output)
 
     def get_stdout(self, code):
         return self._get_output(code, False)
@@ -51,15 +58,17 @@ class FaultHandlerTests(unittest.TestCase):
             stderr = re.sub(r"\[\d+ refs\]\r?\n?$", "", stderr)
         return stderr
 
-    def check_enabled(self, code, line_number, name):
+    def check_enabled(self, code, line_number, name, filename=None):
         line = '  File "<string>", line %s in <module>' % line_number
         expected = [
             'Fatal Python error: ' + name,
             '',
             'Traceback (most recent call first):',
             line]
-        stderr = self.get_stderr(code)
-        lines = stderr.splitlines()
+        output = self.get_stderr(code)
+        if filename:
+            output = read_file(filename)
+        lines = output.splitlines()
         self.assertEqual(lines, expected)
 
     def test_sigsegv(self):
@@ -102,6 +111,18 @@ class FaultHandlerTests(unittest.TestCase):
              "faulthandler.sigsegv(True)"),
             2,
             'Segmentation fault')
+
+    def test_enable_file(self):
+        with tempfile.NamedTemporaryFile() as f:
+            self.check_enabled(
+                ("from __future__ import with_statement",
+                 "import faulthandler",
+                 "output = open(%r, 'wb')" % f.name,
+                 "faulthandler.enable(output)",
+                 "faulthandler.sigsegv(True)"),
+                5,
+                'Segmentation fault',
+                filename=f.name)
 
     def check_disabled(self, *code):
         not_expected = 'Fatal Python error'
@@ -157,9 +178,7 @@ class FaultHandlerTests(unittest.TestCase):
         ]
         stdout = self.get_stdout(code)
         if filename:
-            with open(filename, "rb") as fp:
-                trace = fp.read()
-            trace = trace.decode('ascii', 'backslashreplace')
+            trace = read_file(filename)
         else:
             trace = stdout
         trace = trace.splitlines()
@@ -171,7 +190,7 @@ class FaultHandlerTests(unittest.TestCase):
             self.check_dumpbacktrace(f.name)
 
     def check_dumpbacktrace_threads(self, filename):
-        stdout = self.get_stdout((
+        output = self.get_stdout((
             'from __future__ import with_statement',
             'import faulthandler',
             'from threading import Thread',
@@ -201,11 +220,9 @@ class FaultHandlerTests(unittest.TestCase):
             'waiter.join()',
         ))
         if filename:
-            with open(filename, "rb") as fp:
-                stdout = fp.read()
-                stdout = stdout.decode('ascii', 'backslashreplace')
+            output = read_file(filename)
         # Normalize newlines for Windows
-        lines = '\n'.join(stdout.splitlines())
+        lines = '\n'.join(output.splitlines())
         if filename:
             lineno = 9
         else:
@@ -230,8 +247,6 @@ class FaultHandlerTests(unittest.TestCase):
 
     def _check_dumpbacktrace_later(self, repeat, cancel,
                                    filename, all_threads):
-        sys.stdout.write("*")
-        sys.stdout.flush()
         code = (
             'import faulthandler',
             'import time',
@@ -275,9 +290,7 @@ class FaultHandlerTests(unittest.TestCase):
         )
         stderr = self.get_stderr(code)
         if filename:
-            with open(filename, "rb") as fp:
-                trace = fp.read()
-                trace = trace.decode('ascii', 'backslashreplace')
+            trace = read_file(filename)
         else:
             trace = stderr
         if all_threads:
@@ -312,19 +325,18 @@ class FaultHandlerTests(unittest.TestCase):
             self._check_dumpbacktrace_later(repeat, cancel, None, all_threads)
 
     def test_dumpbacktrace_later(self):
-        # don't repeat
         self.check_dumpbacktrace_later()
 
-        # repeat
+    def test_dumpbacktrace_later_repeat(self):
         self.check_dumpbacktrace_later(repeat=True)
 
-        # repeat and cancel
+    def test_dumpbacktrace_later_repeat_cancel(self):
         self.check_dumpbacktrace_later(repeat=True, cancel=True)
 
-        # all threads (don't repeat)
+    def test_dumpbacktrace_later_threads(self):
         self.check_dumpbacktrace_later(all_threads=True)
 
-        # use a file (don't repeat)
+    def test_dumpbacktrace_later_file(self):
         self.check_dumpbacktrace_later(filename=True)
 
 if __name__ == "__main__":
