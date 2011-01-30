@@ -2,12 +2,13 @@
 
 # Todo list to prepare a release:
 #  - run python tests.py
+#  - run tests on FreeBSD and Windows
 #  - set VERSION in faulthandler/module.c
 #  - set VERSION in setup.py
 #  - set release date in the ChangeLog (README file)
 #  - git commit -a
 #  - git tag -a faulthandler-x.y
-#  - git push --tags
+#  - git push --tags origin
 #  - python setup.py register sdist upload
 #  - python2.6 setup.py bdist_wininst upload
 #  - python2.7 setup.py bdist_wininst upload
@@ -25,7 +26,7 @@ from __future__ import with_statement
 from distutils.core import setup, Extension
 from os.path import join as path_join
 
-VERSION = "1.2"
+VERSION = "1.3"
 
 FILENAMES = ('backtrace.c', 'handler.c', 'module.c', 'tests.c')
 

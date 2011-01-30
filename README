@@ -78,7 +78,7 @@ Dump the current backtrace:
 
 dumpbacktrace_later() is implemented using the SIGALRM signal and the alarm()
 function: if the signal handler is called during a system call, the system call
-is interrupted (return EINTR).
+is interrupted (return EINTR). It it not available on Windows.
 
 enable() and dumpbacktrace_later() keep an internal reference to the output
 file. Use disable() and cancel_dumpbacktrace_later() to clear this reference.
@@ -100,6 +100,12 @@ the major version, and "version & 255" to get the minor version.
 
 Changelog
 =========
+
+Version 1.3 (under development)
+-------------------------------
+
+ * Don't compile dumpbacktrace_later() and cancel_dumpbacktrace_later() on
+   Windows because alarm() is missing
 
 Version 1.2 (2011-01-31)
 ------------------------

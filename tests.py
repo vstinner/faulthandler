@@ -300,6 +300,8 @@ class FaultHandlerTests(unittest.TestCase):
                          "%r != %r: repeat=%s, cancel=%s, use_filename=%s, all_threads=%s"
                          % (trace, expected, repeat, cancel, bool(filename), all_threads))
 
+    @skipIf(not hasattr(faulthandler, 'dumpbacktrace_later'),
+            'need faulthandler.dumpbacktrace_later()')
     def check_dumpbacktrace_later(self, repeat=False, cancel=False,
                                   all_threads=False, filename=False):
         if filename:

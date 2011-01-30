@@ -96,97 +96,6 @@ faulthandler_fatal_error(int signum)
     faulthandler_dump_backtrace(fd, tstate, 1);
 }
 
-/*
- * Handler of the SIGALRM signal: dump the backtrace of the current thread or
- * of all threads if fault_alarm.all_threads is true. On success, register
- * itself again if fault_alarm.repeat is true.
- */
-void
-faulthandler_alarm(int signum)
-{
-    int ok;
-    PyThreadState *tstate;
-
-    /* PyThreadState_Get() doesn't give the state of the current thread if
-       the thread doesn't hold the GIL. Read the thread local storage (TLS)
-       instead: call PyGILState_GetThisThreadState(). */
-    tstate = PyGILState_GetThisThreadState();
-    if (tstate == NULL) {
-        /* unable to get the current thread, do nothing */
-        return;
-    }
-
-    if (fault_alarm.all_threads) {
-        const char* errmsg;
-
-        errmsg = faulthandler_dump_backtrace_threads(fault_alarm.fd, tstate);
-        ok = (errmsg == NULL);
-    }
-    else {
-        faulthandler_dump_backtrace(fault_alarm.fd, tstate, 1);
-        ok = 1;
-    }
-
-    if (ok && fault_alarm.repeat)
-        alarm(fault_alarm.delay);
-    else
-        faulthandler_cancel_dumpbacktrace_later();
-}
-
-void
-faulthandler_init()
-{
-    unsigned int i;
-    fault_handler_t *handler;
-
-    faulthandler_enabled = 0;
-
-    for (i=0; i < NFAULT_SIGNALS; i++) {
-        handler = &fault_handlers[i];
-        handler->signum = fault_signals[i];
-        handler->enabled = 0;
-        if (handler->signum == SIGFPE)
-            handler->name = "Floating point exception";
-#ifdef SIGBUS
-        else if (handler->signum == SIGBUS)
-            handler->name = "Bus error";
-#endif
-#ifdef SIGILL
-        else if (handler->signum == SIGILL)
-            handler->name = "Illegal instruction";
-#endif
-        else
-            handler->name = "Segmentation fault";
-    }
-
-#ifdef HAVE_SIGALTSTACK
-    /* Try to allocate an alternate stack for faulthandler() signal handler to
-     * be able to allocate memory on the stack, even on a stack overflow. If it
-     * fails, ignore the error. */
-    stack.ss_flags = SS_ONSTACK;
-    stack.ss_size = SIGSTKSZ;
-    stack.ss_sp = PyMem_Malloc(stack.ss_size);
-    if (stack.ss_sp != NULL) {
-        (void)sigaltstack(&stack, NULL);
-    }
-#endif
-
-    (void)Py_AtExit(faulthandler_unload);
-}
-
-static void
-faulthandler_unload(void)
-{
-    faulthandler_cancel_dumpbacktrace_later();
-    faulthandler_disable();
-#ifdef HAVE_SIGALTSTACK
-    if (stack.ss_sp != NULL) {
-        PyMem_Free(stack.ss_sp);
-        stack.ss_sp = NULL;
-    }
-#endif
-}
-
 PyObject*
 faulthandler_enable(PyObject *self, PyObject *args)
 {
@@ -280,6 +189,44 @@ faulthandler_isenabled(PyObject *self)
     return PyBool_FromLong(faulthandler_enabled);
 }
 
+#ifdef FAULTHANDLER_LATER
+/*
+ * Handler of the SIGALRM signal: dump the backtrace of the current thread or
+ * of all threads if fault_alarm.all_threads is true. On success, register
+ * itself again if fault_alarm.repeat is true.
+ */
+static void
+faulthandler_alarm(int signum)
+{
+    int ok;
+    PyThreadState *tstate;
+
+    /* PyThreadState_Get() doesn't give the state of the current thread if
+       the thread doesn't hold the GIL. Read the thread local storage (TLS)
+       instead: call PyGILState_GetThisThreadState(). */
+    tstate = PyGILState_GetThisThreadState();
+    if (tstate == NULL) {
+        /* unable to get the current thread, do nothing */
+        return;
+    }
+
+    if (fault_alarm.all_threads) {
+        const char* errmsg;
+
+        errmsg = faulthandler_dump_backtrace_threads(fault_alarm.fd, tstate);
+        ok = (errmsg == NULL);
+    }
+    else {
+        faulthandler_dump_backtrace(fault_alarm.fd, tstate, 1);
+        ok = 1;
+    }
+
+    if (ok && fault_alarm.repeat)
+        alarm(fault_alarm.delay);
+    else
+        faulthandler_cancel_dumpbacktrace_later();
+}
+
 PyObject*
 faulthandler_dumpbacktrace_later(PyObject *self, PyObject *args, PyObject *kwargs)
 {
@@ -342,5 +289,62 @@ faulthandler_cancel_dumpbacktrace_later_py(PyObject *self)
 {
     faulthandler_cancel_dumpbacktrace_later();
     Py_RETURN_NONE;
+}
+#endif
+
+void
+faulthandler_init()
+{
+    unsigned int i;
+    fault_handler_t *handler;
+
+    faulthandler_enabled = 0;
+
+    for (i=0; i < NFAULT_SIGNALS; i++) {
+        handler = &fault_handlers[i];
+        handler->signum = fault_signals[i];
+        handler->enabled = 0;
+        if (handler->signum == SIGFPE)
+            handler->name = "Floating point exception";
+#ifdef SIGBUS
+        else if (handler->signum == SIGBUS)
+            handler->name = "Bus error";
+#endif
+#ifdef SIGILL
+        else if (handler->signum == SIGILL)
+            handler->name = "Illegal instruction";
+#endif
+        else
+            handler->name = "Segmentation fault";
+    }
+
+#ifdef HAVE_SIGALTSTACK
+    /* Try to allocate an alternate stack for faulthandler() signal handler to
+     * be able to allocate memory on the stack, even on a stack overflow. If it
+     * fails, ignore the error. */
+    stack.ss_flags = SS_ONSTACK;
+    stack.ss_size = SIGSTKSZ;
+    stack.ss_sp = PyMem_Malloc(stack.ss_size);
+    if (stack.ss_sp != NULL) {
+        (void)sigaltstack(&stack, NULL);
+    }
+#endif
+
+    (void)Py_AtExit(faulthandler_unload);
+}
+
+static void
+faulthandler_unload(void)
+{
+#ifdef FAULTHANDLER_LATER
+    faulthandler_cancel_dumpbacktrace_later();
+#endif
+    faulthandler_disable();
+#ifdef HAVE_SIGALTSTACK
+    if (stack.ss_sp != NULL) {
+        PyMem_Free(stack.ss_sp);
+        stack.ss_sp = NULL;
+    }
+#endif
 }
 
