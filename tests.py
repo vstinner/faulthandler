@@ -7,6 +7,8 @@ import unittest
 import re
 import tempfile
 
+Py_REF_DEBUG = hasattr(sys, 'gettotalrefcount')
+
 try:
     skipIf = unittest.skipIf
 except AttributeError:
@@ -44,7 +46,10 @@ class FaultHandlerTests(unittest.TestCase):
         return self._get_output(code, False)
 
     def get_stderr(self, code):
-        return self._get_output(code, True)
+        stderr = self._get_output(code, True)
+        if Py_REF_DEBUG:
+            stderr = re.sub(r"\[\d+ refs\]\r?\n?$", "", stderr)
+        return stderr
 
     def check_enabled(self, code, line_number, name):
         line = '  File "<string>", line %s in <module>' % line_number
