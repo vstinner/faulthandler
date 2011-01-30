@@ -129,15 +129,6 @@ faulthandler_alarm(int signum)
         faulthandler_cancel_dumpbacktrace_later();
 }
 
-void
-faulthandler_init()
-{
-    faulthandler_enabled = 0;
-#ifdef HAVE_SIGALTSTACK
-    stack.ss_sp = NULL;
-#endif
-}
-
 static void
 faulthandler_unload(void)
 {
@@ -150,11 +141,45 @@ faulthandler_unload(void)
 #endif
 }
 
-int
-get_stderr()
+void
+faulthandler_init()
 {
-    fflush(stderr);
-    return fileno(stderr);
+    unsigned int i;
+    fault_handler_t *handler;
+
+    faulthandler_enabled = 0;
+
+    for (i=0; i < NFAULT_SIGNALS; i++) {
+        handler = &fault_handlers[i];
+        handler->signum = fault_signals[i];
+        handler->enabled = 0;
+        if (handler->signum == SIGFPE)
+            handler->name = "Floating point exception";
+#ifdef SIGBUS
+        else if (handler->signum == SIGBUS)
+            handler->name = "Bus error";
+#endif
+#ifdef SIGILL
+        else if (handler->signum == SIGILL)
+            handler->name = "Illegal instruction";
+#endif
+        else
+            handler->name = "Segmentation fault";
+    }
+
+#ifdef HAVE_SIGALTSTACK
+    /* Try to allocate an alternate stack for faulthandler() signal handler to
+     * be able to allocate memory on the stack, even on a stack overflow. If it
+     * fails, ignore the error. */
+    stack.ss_flags = SS_ONSTACK;
+    stack.ss_size = SIGSTKSZ;
+    stack.ss_sp = PyMem_Malloc(stack.ss_size);
+    if (stack.ss_sp != NULL) {
+        (void)sigaltstack(&stack, NULL);
+    }
+#endif
+
+    (void)Py_AtExit(faulthandler_unload);
 }
 
 PyObject*
@@ -180,43 +205,16 @@ faulthandler_enable(PyObject *self)
 
     faulthandler_enabled = 1;
 
-#ifdef HAVE_SIGALTSTACK
-    /* Try to allocate an alternate stack for faulthandler() signal handler to
-     * be able to allocate memory on the stack, even on a stack overflow. If it
-     * fails, ignore the error. */
-    stack.ss_flags = SS_ONSTACK;
-    stack.ss_size = SIGSTKSZ;
-    stack.ss_sp = PyMem_Malloc(stack.ss_size);
-    if (stack.ss_sp != NULL) {
-        (void)sigaltstack(&stack, NULL);
-    }
-#endif
-    (void)Py_AtExit(faulthandler_unload);
-
-    for (i=0; i < NFAULT_SIGNALS; i++) {
-        handler = &fault_handlers[i];
-        handler->signum = fault_signals[i];;
-        handler->enabled = 0;
-        if (handler->signum == SIGFPE)
-            handler->name = "Floating point exception";
-#ifdef SIGBUS
-        else if (handler->signum == SIGBUS)
-            handler->name = "Bus error";
-#endif
-#ifdef SIGILL
-        else if (handler->signum == SIGILL)
-            handler->name = "Illegal instruction";
-#endif
-        else
-            handler->name = "Segmentation fault";
-    }
-
     for (i=0; i < NFAULT_SIGNALS; i++) {
         handler = &fault_handlers[i];
 #ifdef HAVE_SIGACTION
         action.sa_handler = faulthandler_fatal_error;
         sigemptyset(&action.sa_mask);
-        action.sa_flags = SA_ONSTACK;
+        action.sa_flags = 0;
+#ifdef HAVE_SIGALTSTACK
+        if (stack.ss_sp != NULL)
+            action.sa_flags |= SA_ONSTACK;
+#endif
         err = sigaction(handler->signum, &action, &handler->previous);
         if (!err)
             handler->enabled = 1;
