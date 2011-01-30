@@ -2,8 +2,8 @@
 #include <signal.h>
 
 /* Forward */
-static void faulthandler_disable();
 static void faulthandler_unload(void);
+static void faulthandler_disable(void);
 
 #ifdef HAVE_SIGACTION
 typedef struct sigaction _Py_sighandler_t;
