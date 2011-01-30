@@ -15,13 +15,13 @@ PyDoc_STRVAR(module_doc,
 static PyMethodDef module_methods[] = {
     {"enable", faulthandler_enable, METH_VARARGS,
      PyDoc_STR("enable(file=sys.stderr): enable the fault handler")},
-    {"disable", (PyCFunction)faulthandler_disable, METH_NOARGS,
+    {"disable", (PyCFunction)faulthandler_disable_py, METH_NOARGS,
      PyDoc_STR("disable(): disable the fault handler")},
     {"isenabled", (PyCFunction)faulthandler_isenabled, METH_NOARGS,
      PyDoc_STR("isenabled()->bool: check if the handler is enabled")},
     {"dumpbacktrace",
      (PyCFunction)faulthandler_dump_backtrace_py, METH_VARARGS|METH_KEYWORDS,
-     PyDoc_STR("dumpbacktrace(file=sys.stdout, all_threads=False): "
+     PyDoc_STR("dumpbacktrace(file=sys.stderr, all_threads=False): "
                "dump the backtrace of the current thread, or of all threads "
                "if all_threads is True, into file")},
     {"dumpbacktrace_later",

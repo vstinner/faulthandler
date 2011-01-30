@@ -66,20 +66,22 @@ Fault handler state (disabled by default):
 
 Dump the current backtrace:
 
- * dumpbacktrace(file=sys.stdout, all_threads=False): dump backtrace of the
+ * dumpbacktrace(file=sys.stderr, all_threads=False): dump backtrace of the
    current thread, or of all threads if all_threads is True, into file
  * dumpbacktrace_later(delay, repeat=False, file=sys.stderr, all_threads=False):
    dump the backtrace of the current thread, or of all threads if all_threads
-   is True, in delay seconds, or each delay seconds if repeat is True. It
-   writes the backtrace(s) into the file descriptor 2 which is supposed to be
-   stderr. If the function is called twice, the new call replaces previous
-   parameters. Call cancel_dumpbacktrace_later() to call the next request.
+   is True, in delay seconds, or each delay seconds if repeat is True. If the
+   function is called twice, the new call replaces previous parameters. Call
+   cancel_dumpbacktrace_later() to call the next request.
  * cancel_dumpbacktrace_later(): cancel the previous call to
    dumpbacktrace_later()
 
 dumpbacktrace_later() is implemented using the SIGALRM signal and the alarm()
 function: if the signal handler is called during a system call, the system call
 is interrupted (return EINTR).
+
+enable() and dumpbacktrace_later() keep an internal reference to the output
+file. Use disable() and cancel_dumpbacktrace_later() to clear this reference.
 
 Functions to test the fault handler:
 

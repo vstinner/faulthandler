@@ -1,6 +1,10 @@
 #include "faulthandler.h"
 #include <signal.h>
 
+/* Forward */
+static void faulthandler_disable();
+static void faulthandler_unload(void);
+
 #ifdef HAVE_SIGACTION
 typedef struct sigaction _Py_sighandler_t;
 #else
@@ -13,6 +17,7 @@ static stack_t stack;
 
 int faulthandler_enabled = 0;
 
+static PyObject *fatal_error_file = NULL;
 /* fileno(stderr)=2: the value is replaced in faulthandler_enable() */
 static int fatal_error_fd = 2;
 
@@ -128,18 +133,6 @@ faulthandler_alarm(int signum)
         faulthandler_cancel_dumpbacktrace_later();
 }
 
-static void
-faulthandler_unload(void)
-{
-    faulthandler_cancel_dumpbacktrace_later();
-#ifdef HAVE_SIGALTSTACK
-    if (stack.ss_sp != NULL) {
-        PyMem_Free(stack.ss_sp);
-        stack.ss_sp = NULL;
-    }
-#endif
-}
-
 void
 faulthandler_init()
 {
@@ -181,6 +174,19 @@ faulthandler_init()
     (void)Py_AtExit(faulthandler_unload);
 }
 
+static void
+faulthandler_unload(void)
+{
+    faulthandler_cancel_dumpbacktrace_later();
+    faulthandler_disable();
+#ifdef HAVE_SIGALTSTACK
+    if (stack.ss_sp != NULL) {
+        PyMem_Free(stack.ss_sp);
+        stack.ss_sp = NULL;
+    }
+#endif
+}
+
 PyObject*
 faulthandler_enable(PyObject *self, PyObject *args)
 {
@@ -198,11 +204,14 @@ faulthandler_enable(PyObject *self, PyObject *args)
     if (file == NULL) {
         file = PySys_GetObject("stderr");
         if (file == NULL) {
-            PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stdout");
+            PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stderr");
             return NULL;
         }
     }
 
+    Py_XDECREF(fatal_error_file);
+    Py_INCREF(file);
+    fatal_error_file = file;
     fatal_error_fd = faulthandler_get_fileno(file);
     if (fatal_error_fd == -1)
         return NULL;
@@ -234,29 +243,34 @@ faulthandler_enable(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-PyObject*
-faulthandler_disable(PyObject *self)
+static void
+faulthandler_disable()
 {
     unsigned int i;
     fault_handler_t *handler;
 
-    if (!faulthandler_enabled)
-        goto exit;
-    faulthandler_enabled = 0;
+    Py_CLEAR(fatal_error_file);
 
-    for (i=0; i < NFAULT_SIGNALS; i++) {
-        handler = &fault_handlers[i];
-        if (!handler->enabled)
-            continue;
+    if (faulthandler_enabled) {
+        for (i=0; i < NFAULT_SIGNALS; i++) {
+            handler = &fault_handlers[i];
+            if (!handler->enabled)
+                continue;
 #ifdef HAVE_SIGACTION
-        (void)sigaction(handler->signum, &handler->previous, NULL);
+            (void)sigaction(handler->signum, &handler->previous, NULL);
 #else
-        (void)signal(handler->signum, handler->previous);
+            (void)signal(handler->signum, handler->previous);
 #endif
-        handler->enabled = 0;
+            handler->enabled = 0;
+        }
     }
+    faulthandler_enabled = 0;
+}
 
-exit:
+PyObject*
+faulthandler_disable_py(PyObject *self)
+{
+    faulthandler_disable();
     Py_RETURN_NONE;
 }
 

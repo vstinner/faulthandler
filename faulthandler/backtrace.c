@@ -311,9 +311,9 @@ faulthandler_dump_backtrace_py(PyObject *self,
         return NULL;
 
     if (file == NULL) {
-        file = PySys_GetObject("stdout");
+        file = PySys_GetObject("stderr");
         if (file == NULL) {
-            PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stdout");
+            PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stderr");
             return NULL;
         }
     }

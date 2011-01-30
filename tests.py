@@ -33,30 +33,16 @@ def read_file(filename):
     return decode_output(output)
 
 class FaultHandlerTests(unittest.TestCase):
-    def _get_output(self, code, want_stderr):
+    def get_output(self, code):
         code = '\n'.join(code)
-        if want_stderr:
-            options = {'stderr': subprocess.PIPE}
-        else:
-            options = {'stdout': subprocess.PIPE}
         process = subprocess.Popen(
             [sys.executable, '-c', code],
-            **options)
+            stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
-        if want_stderr:
-            output = stderr
-        else:
-            output = stdout
-        return decode_output(output)
-
-    def get_stdout(self, code):
-        return self._get_output(code, False)
-
-    def get_stderr(self, code):
-        stderr = self._get_output(code, True)
+        output = decode_output(stderr)
         if Py_REF_DEBUG:
-            stderr = re.sub(r"\[\d+ refs\]\r?\n?$", "", stderr)
-        return stderr
+            output = re.sub(r"\[\d+ refs\]\r?\n?$", "", output)
+        return output
 
     def check_enabled(self, code, line_number, name, filename=None):
         line = '  File "<string>", line %s in <module>' % line_number
@@ -65,7 +51,7 @@ class FaultHandlerTests(unittest.TestCase):
             '',
             'Traceback (most recent call first):',
             line]
-        output = self.get_stderr(code)
+        output = self.get_output(code)
         if filename:
             output = read_file(filename)
         lines = output.splitlines()
@@ -126,7 +112,7 @@ class FaultHandlerTests(unittest.TestCase):
 
     def check_disabled(self, *code):
         not_expected = 'Fatal Python error'
-        stderr = self.get_stderr(code)
+        stderr = self.get_output(code)
         self.assertTrue(not_expected not in stderr,
                      "%r is present in %r" % (not_expected, stderr))
 
@@ -176,11 +162,9 @@ class FaultHandlerTests(unittest.TestCase):
             '  File "<string>", line 12 in funcA',
             '  File "<string>", line 14 in <module>'
         ]
-        stdout = self.get_stdout(code)
+        trace = self.get_output(code)
         if filename:
             trace = read_file(filename)
-        else:
-            trace = stdout
         trace = trace.splitlines()
         self.assertEqual(trace, expected)
 
@@ -190,7 +174,7 @@ class FaultHandlerTests(unittest.TestCase):
             self.check_dumpbacktrace(f.name)
 
     def check_dumpbacktrace_threads(self, filename):
-        output = self.get_stdout((
+        output = self.get_output((
             'from __future__ import with_statement',
             'import faulthandler',
             'from threading import Thread',
@@ -288,7 +272,7 @@ class FaultHandlerTests(unittest.TestCase):
             'if file is not None:',
             '    file.close()',
         )
-        stderr = self.get_stderr(code)
+        stderr = self.get_output(code)
         if filename:
             trace = read_file(filename)
         else:
