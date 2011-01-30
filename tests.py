@@ -1,3 +1,4 @@
+from __future__ import with_statement
 import faulthandler; faulthandler.disable()
 import os
 import subprocess
@@ -22,15 +23,28 @@ except AttributeError:
         return decorator
 
 class FaultHandlerTests(unittest.TestCase):
-    def get_output(self, code):
+    def _get_output(self, code, want_stderr):
         code = '\n'.join(code)
+        if want_stderr:
+            options = {'stderr': subprocess.PIPE}
+        else:
+            options = {'stdout': subprocess.PIPE}
         process = subprocess.Popen(
             [sys.executable, '-c', code],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            **options)
         stdout, stderr = process.communicate()
-        stdout = stdout.decode('ascii', 'backslashreplace')
-        stderr = stderr.decode('ascii', 'backslashreplace')
-        return (stdout, stderr)
+        if want_stderr:
+            output = stderr
+        else:
+            output = stdout
+        output = output.decode('ascii', 'backslashreplace')
+        return output
+
+    def get_stdout(self, code):
+        return self._get_output(code, False)
+
+    def get_stderr(self, code):
+        return self._get_output(code, True)
 
     def check_enabled(self, code, line_number, name):
         line = '  File "<string>", line %s in <module>' % line_number
@@ -39,7 +53,7 @@ class FaultHandlerTests(unittest.TestCase):
             '',
             'Traceback (most recent call first):',
             line]
-        stdout, stderr = self.get_output(code)
+        stderr = self.get_stderr(code)
         lines = stderr.splitlines()
         self.assertEqual(lines, expected)
 
@@ -86,7 +100,7 @@ class FaultHandlerTests(unittest.TestCase):
 
     def check_disabled(self, *code):
         not_expected = 'Fatal Python error'
-        stdout, stderr = self.get_output(code)
+        stderr = self.get_stderr(code)
         self.assertTrue(not_expected not in stderr,
                      "%r is present in %r" % (not_expected, stderr))
 
@@ -111,6 +125,7 @@ class FaultHandlerTests(unittest.TestCase):
 
     def check_dumpbacktrace(self, filename):
         code = (
+            'from __future__ import with_statement',
             'import faulthandler',
             '',
             'def funcB():',
@@ -126,30 +141,33 @@ class FaultHandlerTests(unittest.TestCase):
             'funcA()',
         )
         if filename:
-            lineno = 6
+            lineno = 7
         else:
-            lineno = 8
+            lineno = 9
         expected = [
             'Traceback (most recent call first):',
             '  File "<string>", line %s in funcB' % lineno,
-            '  File "<string>", line 11 in funcA',
-            '  File "<string>", line 13 in <module>'
+            '  File "<string>", line 12 in funcA',
+            '  File "<string>", line 14 in <module>'
         ]
-        stdout, stderr = self.get_output(code)
+        stdout = self.get_stdout(code)
         if filename:
             with open(filename, "rb") as fp:
-                stdout = fp.read()
-                stdout = stdout.decode('ascii', 'backslashreplace')
-        trace = stdout.splitlines()
+                trace = fp.read()
+            trace = trace.decode('ascii', 'backslashreplace')
+        else:
+            trace = stdout
+        trace = trace.splitlines()
         self.assertEqual(trace, expected)
 
     def test_dumpbacktrace(self):
         self.check_dumpbacktrace(None)
-        with tempfile.TemporaryFile() as f:
+        with tempfile.NamedTemporaryFile() as f:
             self.check_dumpbacktrace(f.name)
 
     def check_dumpbacktrace_threads(self, filename):
-        stdout, stderr = self.get_output((
+        stdout = self.get_stdout((
+            'from __future__ import with_statement',
             'import faulthandler',
             'from threading import Thread',
             'import time',
@@ -184,25 +202,25 @@ class FaultHandlerTests(unittest.TestCase):
         # Normalize newlines for Windows
         lines = '\n'.join(stdout.splitlines())
         if filename:
-            lineno = 8
+            lineno = 9
         else:
-            lineno = 10
+            lineno = 11
         regex = '\n'.join((
             'Thread #2 \\(0x[0-9a-f]+\\):',
-            '  File "<string>", line 19 in run',
+            '  File "<string>", line 20 in run',
             '  File ".*threading.py", line [0-9]+ in __?bootstrap_inner',
             '  File ".*threading.py", line [0-9]+ in __?bootstrap',
             '',
             'Current thread #1 \\(0x[0-9a-f]+\\):',
             '  File "<string>", line %s in dump' % lineno,
-            '  File "<string>", line 24 in <module>',
+            '  File "<string>", line 25 in <module>',
         ))
         self.assertTrue(re.match(regex, lines),
                         "<<<%s>>> doesn't match" % lines)
 
     def test_dumpbacktrace_threads(self):
         self.check_dumpbacktrace_threads(None)
-        with tempfile.TemporaryFile() as tmp:
+        with tempfile.NamedTemporaryFile() as tmp:
             self.check_dumpbacktrace_threads(tmp.name)
 
     def _check_dumpbacktrace_later(self, repeat, cancel,
@@ -250,7 +268,7 @@ class FaultHandlerTests(unittest.TestCase):
             'if file is not None:',
             '    file.close()',
         )
-        stdout, stderr = self.get_output(code)
+        stderr = self.get_stderr(code)
         if filename:
             with open(filename, "rb") as fp:
                 trace = fp.read()
@@ -283,7 +301,7 @@ class FaultHandlerTests(unittest.TestCase):
     def check_dumpbacktrace_later(self, repeat=False, cancel=False,
                                   all_threads=False, filename=False):
         if filename:
-            with tempfile.TemporaryFile() as f:
+            with tempfile.NamedTemporaryFile() as f:
                 self._check_dumpbacktrace_later(repeat, cancel, f.name, all_threads)
         else:
             self._check_dumpbacktrace_later(repeat, cancel, None, all_threads)
