@@ -13,8 +13,8 @@ PyDoc_STRVAR(module_doc,
 "faulthandler module.");
 
 static PyMethodDef module_methods[] = {
-    {"enable", (PyCFunction)faulthandler_enable, METH_NOARGS,
-     PyDoc_STR("enable(): enable the fault handler")},
+    {"enable", faulthandler_enable, METH_VARARGS,
+     PyDoc_STR("enable(file=sys.stderr): enable the fault handler")},
     {"disable", (PyCFunction)faulthandler_disable, METH_NOARGS,
      PyDoc_STR("disable(): disable the fault handler")},
     {"isenabled", (PyCFunction)faulthandler_isenabled, METH_NOARGS,

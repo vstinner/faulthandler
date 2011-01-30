@@ -13,8 +13,7 @@ static stack_t stack;
 
 int faulthandler_enabled = 0;
 
-/* fileno(stderr) should be 2: anyway, the value is replaced in
- * faulthandler_enable() */
+/* fileno(stderr)=2: the value is replaced in faulthandler_enable() */
 static int fatal_error_fd = 2;
 
 typedef struct {
@@ -183,49 +182,54 @@ faulthandler_init()
 }
 
 PyObject*
-faulthandler_enable(PyObject *self)
+faulthandler_enable(PyObject *self, PyObject *args)
 {
+    PyObject *file = NULL;
     unsigned int i;
     fault_handler_t *handler;
 #ifdef HAVE_SIGACTION
     struct sigaction action;
     int err;
 #endif
-    PyObject *sys_stderr;
 
-    if (faulthandler_enabled)
-        Py_RETURN_NONE;
-
-    sys_stderr = PySys_GetObject("stderr");
-    if (sys_stderr == NULL) {
-        PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stdout");
+    if (!PyArg_ParseTuple(args, "|O:enable", &file))
         return NULL;
+
+    if (file == NULL) {
+        file = PySys_GetObject("stderr");
+        if (file == NULL) {
+            PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stdout");
+            return NULL;
+        }
     }
 
-    fatal_error_fd = faulthandler_get_fileno(sys_stderr);
+    fatal_error_fd = faulthandler_get_fileno(file);
     if (fatal_error_fd == -1)
         return NULL;
 
-    faulthandler_enabled = 1;
+    if (!faulthandler_enabled) {
+        faulthandler_enabled = 1;
 
-    for (i=0; i < NFAULT_SIGNALS; i++) {
-        handler = &fault_handlers[i];
+        for (i=0; i < NFAULT_SIGNALS; i++) {
+            handler = &fault_handlers[i];
 #ifdef HAVE_SIGACTION
-        action.sa_handler = faulthandler_fatal_error;
-        sigemptyset(&action.sa_mask);
-        action.sa_flags = 0;
+            action.sa_handler = faulthandler_fatal_error;
+            sigemptyset(&action.sa_mask);
+            action.sa_flags = 0;
 #ifdef HAVE_SIGALTSTACK
-        if (stack.ss_sp != NULL)
-            action.sa_flags |= SA_ONSTACK;
+            if (stack.ss_sp != NULL)
+                action.sa_flags |= SA_ONSTACK;
 #endif
-        err = sigaction(handler->signum, &action, &handler->previous);
-        if (!err)
-            handler->enabled = 1;
+            err = sigaction(handler->signum, &action, &handler->previous);
+            if (!err)
+                handler->enabled = 1;
 #else
-        handler->previous = signal(handler->signum, faulthandler_fatal_error);
-        if (handler->previous != SIG_ERR)
-            handler->enabled = 1;
+            handler->previous = signal(handler->signum,
+                                       faulthandler_fatal_error);
+            if (handler->previous != SIG_ERR)
+                handler->enabled = 1;
 #endif
+        }
     }
     Py_RETURN_NONE;
 }

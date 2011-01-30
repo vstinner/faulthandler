@@ -60,7 +60,7 @@ faulthandler module API
 
 Fault handler state (disabled by default):
 
- * enable(): enable the fault handler, store the file descriptor of sys.stderr
+ * enable(file=sys.stderr): enable the fault handler
  * disable(): disable the fault handler
  * isenabled(): get the status of the fault handler
 
@@ -103,8 +103,7 @@ Version 1.2 (under development)
 -------------------------------
 
  * Add dumpbacktrace_later() and cancel_dumpbacktrace_later() function
- * dumpbacktrace() has an optional file argument (default: sys.stdout) and
-   flush the file before writing into it
+ * enable() and dumpbacktrace() get an optional file argument
  * Replace dumpbacktrace_threads() function by a new dumpbacktrace() argument:
    dumpbacktrace(all_threads=True)
  * enable() gets the file descriptor of sys.stderr instead of using the file
