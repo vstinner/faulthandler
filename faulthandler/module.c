@@ -24,6 +24,7 @@ static PyMethodDef module_methods[] = {
      PyDoc_STR("dumpbacktrace(file=sys.stderr, all_threads=False): "
                "dump the backtrace of the current thread, or of all threads "
                "if all_threads is True, into file")},
+#ifdef FAULTHANDLER_LATER
     {"dumpbacktrace_later",
      (PyCFunction)faulthandler_dumpbacktrace_later, METH_VARARGS|METH_KEYWORDS,
      PyDoc_STR("dumpbacktrace_later(delay, repeat=False, file=sys.stderr, all_threads=False): "
@@ -34,7 +35,7 @@ static PyMethodDef module_methods[] = {
      (PyCFunction)faulthandler_cancel_dumpbacktrace_later_py, METH_NOARGS,
      PyDoc_STR("cancel_dumpbacktrace_later(): cancel the previous call "
                "to dumpbacktrace_later().")},
-
+#endif
     {"sigsegv", faulthandler_sigsegv, METH_VARARGS,
      PyDoc_STR("sigsegv(release_gil=False): raise a SIGSEGV signal")},
     {"sigfpe", (PyCFunction)faulthandler_sigfpe, METH_NOARGS,
