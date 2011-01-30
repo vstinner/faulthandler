@@ -3,8 +3,12 @@
 
 #if PY_MAJOR_VERSION >= 3
 #  define PYSTRING_CHECK PyUnicode_Check
+#  define PYINT_CHECK PyLong_Check
+#  define PYINT_ASLONG PyLong_AsLong
 #else
 #  define PYSTRING_CHECK PyString_Check
+#  define PYINT_CHECK PyInt_Check
+#  define PYINT_ASLONG PyInt_AsLong
 #endif
 
 static void
@@ -267,8 +271,8 @@ faulthandler_get_fileno(PyObject *file)
         return -1;
 
     fd = -1;
-    if (PyInt_Check(result)) {
-        fd_long = PyInt_AsLong(result);
+    if (PYINT_CHECK(result)) {
+        fd_long = PYINT_ASLONG(result);
         if (0 < fd_long && fd_long < INT_MAX)
             fd = (int)fd_long;
     }
