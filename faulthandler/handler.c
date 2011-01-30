@@ -191,17 +191,20 @@ faulthandler_enable(PyObject *self)
     struct sigaction action;
     int err;
 #endif
+    PyObject *sys_stderr;
 
     if (faulthandler_enabled)
         Py_RETURN_NONE;
 
-    fatal_error_fd = get_stderr();
-    if (fatal_error_fd == -1) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "unable to get the file descriptor "
-                        "of the standard error");
+    sys_stderr = PySys_GetObject("stderr");
+    if (sys_stderr == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stdout");
         return NULL;
     }
+
+    fatal_error_fd = faulthandler_get_fileno(sys_stderr);
+    if (fatal_error_fd == -1)
+        return NULL;
 
     faulthandler_enabled = 1;
 
