@@ -1,5 +1,6 @@
+ * tests.py: test register() with something else than SIGUSR1 on Windows?
  * fix tests on Windows (permission denied)
- * handle "#ifdef HAVE_SIGACTION" and "#ifdef HAVE_SIGALTSTACK"
+ * setup.py: handle "#ifdef HAVE_SIGACTION" and "#ifdef HAVE_SIGALTSTACK"
  * disable handlers at fork?
  * what about child processes?
  * use something else than Py_AtExit() to unload the module?
