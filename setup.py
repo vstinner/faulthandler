@@ -7,8 +7,9 @@
 #  - set VERSION in setup.py
 #  - set release date in the ChangeLog (README file)
 #  - git commit -a
-#  - git tag -a faulthandler-x.y
-#  - git push --tags origin
+#  - git tag -a faulthandler-x.y -m "tag version x.y"
+#  - git push
+#  - git push --tags
 #  - python setup.py register sdist upload
 #  - python2.6 setup.py bdist_wininst upload
 #  - python2.7 setup.py bdist_wininst upload
@@ -26,7 +27,7 @@ from __future__ import with_statement
 from distutils.core import setup, Extension
 from os.path import join as path_join
 
-VERSION = "1.3"
+VERSION = "1.4"
 
 FILENAMES = ('backtrace.c', 'handler.c', 'module.c', 'tests.c')
 

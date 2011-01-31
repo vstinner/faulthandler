@@ -1,3 +1,4 @@
+ * fix tests on Windows (permission denied)
  * remove fault_signals: initialize the variable using the compiler
  * add a function to dump the backtrace on an arbitrary signal, especially
    SIGUSR1

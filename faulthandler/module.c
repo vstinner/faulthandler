@@ -7,7 +7,7 @@
 
 #include "faulthandler.h"
 
-#define VERSION 0x103
+#define VERSION 0x104
 
 PyDoc_STRVAR(module_doc,
 "faulthandler module.");
