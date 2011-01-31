@@ -16,8 +16,10 @@ PyDoc_STRVAR(module_doc,
 "faulthandler module.");
 
 static PyMethodDef module_methods[] = {
-    {"enable", faulthandler_enable, METH_VARARGS,
-     PyDoc_STR("enable(file=sys.stderr): enable the fault handler")},
+    {"enable",
+     (PyCFunction)faulthandler_enable, METH_VARARGS|METH_KEYWORDS,
+     PyDoc_STR("enable(file=sys.stderr, all_threads=False): "
+               "enable the fault handler")},
     {"disable", (PyCFunction)faulthandler_disable_py, METH_NOARGS,
      PyDoc_STR("disable(): disable the fault handler")},
     {"isenabled", (PyCFunction)faulthandler_isenabled, METH_NOARGS,
@@ -102,8 +104,6 @@ initfaulthandler(void)
         return;
 #endif
     }
-
-    faulthandler_enabled = 0;
 
 #ifdef HAVE_SIGALTSTACK
     /* Try to allocate an alternate stack for faulthandler() signal handler to

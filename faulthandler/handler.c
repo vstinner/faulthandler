@@ -5,11 +5,15 @@
 static stack_t stack;
 #endif
 
-int faulthandler_enabled = 0;
-
-static PyObject *fatal_error_file = NULL;
-/* fileno(stderr)=2: the value is replaced in faulthandler_enable() */
-static int fatal_error_fd = 2;
+static struct {
+    int enabled;
+    PyObject *file;
+    int fd;
+    int all_threads;
+} fatal_error = {
+    /* fileno(stderr)=2: the value is replaced in faulthandler_enable() */
+    0, NULL, 2
+};
 
 static struct {
     PyObject *file;
@@ -42,7 +46,7 @@ unsigned char faulthandler_nsignals = \
 void
 faulthandler_fatal_error(int signum)
 {
-    const int fd = fatal_error_fd;
+    const int fd = fatal_error.fd;
     unsigned int i;
     fault_handler_t *handler;
     PyThreadState *tstate;
@@ -76,21 +80,28 @@ faulthandler_fatal_error(int signum)
     if (tstate == NULL)
         return;
 
-    faulthandler_dump_backtrace(fd, tstate, 1);
+    if (fatal_error.all_threads)
+        faulthandler_dump_backtrace_threads(fd, tstate);
+    else
+        faulthandler_dump_backtrace(fd, tstate, 1);
 }
 
 PyObject*
-faulthandler_enable(PyObject *self, PyObject *args)
+faulthandler_enable(PyObject *self, PyObject *args, PyObject *kwargs)
 {
+    static char *kwlist[] = {"file", "all_threads", NULL};
     PyObject *file = NULL;
+    int all_threads = 0;
     unsigned int i;
     fault_handler_t *handler;
 #ifdef HAVE_SIGACTION
     struct sigaction action;
     int err;
 #endif
+    int fd;
 
-    if (!PyArg_ParseTuple(args, "|O:enable", &file))
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs,
+        "|Oi:enable", kwlist, &file, &all_threads))
         return NULL;
 
     if (file == NULL) {
@@ -101,15 +112,18 @@ faulthandler_enable(PyObject *self, PyObject *args)
         }
     }
 
-    Py_XDECREF(fatal_error_file);
-    Py_INCREF(file);
-    fatal_error_file = file;
-    fatal_error_fd = faulthandler_get_fileno(file);
-    if (fatal_error_fd == -1)
+    fd = faulthandler_get_fileno(file);
+    if (fd == -1)
         return NULL;
 
-    if (!faulthandler_enabled) {
-        faulthandler_enabled = 1;
+    Py_XDECREF(fatal_error.file);
+    Py_INCREF(file);
+    fatal_error.file = file;
+    fatal_error.fd = fd;
+    fatal_error.all_threads = all_threads;
+
+    if (!fatal_error.enabled) {
+        fatal_error.enabled = 1;
 
         for (i=0; i < faulthandler_nsignals; i++) {
             handler = &faulthandler_handlers[i];
@@ -141,9 +155,9 @@ faulthandler_disable()
     unsigned int i;
     fault_handler_t *handler;
 
-    Py_CLEAR(fatal_error_file);
+    Py_CLEAR(fatal_error.file);
 
-    if (faulthandler_enabled) {
+    if (fatal_error.enabled) {
         for (i=0; i < faulthandler_nsignals; i++) {
             handler = &faulthandler_handlers[i];
             if (!handler->enabled)
@@ -156,13 +170,13 @@ faulthandler_disable()
             handler->enabled = 0;
         }
     }
-    faulthandler_enabled = 0;
+    fatal_error.enabled = 0;
 }
 
 PyObject*
 faulthandler_disable_py(PyObject *self)
 {
-    if (!faulthandler_enabled) {
+    if (!fatal_error.enabled) {
         Py_INCREF(Py_False);
         return Py_False;
     }
@@ -174,7 +188,7 @@ faulthandler_disable_py(PyObject *self)
 PyObject*
 faulthandler_isenabled(PyObject *self)
 {
-    return PyBool_FromLong(faulthandler_enabled);
+    return PyBool_FromLong(fatal_error.enabled);
 }
 
 #ifdef FAULTHANDLER_LATER

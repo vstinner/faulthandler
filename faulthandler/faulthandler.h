@@ -23,12 +23,11 @@ typedef struct {
     int enabled;
     const char* name;
     _Py_sighandler_t previous;
+    int all_threads;
 } fault_handler_t;
 
 extern fault_handler_t faulthandler_handlers[];
 extern unsigned char faulthandler_nsignals;
-
-extern int faulthandler_enabled;
 
 void faulthandler_init(void);
 
@@ -38,7 +37,8 @@ void faulthandler_fatal_error(
 int faulthandler_get_fileno(PyObject *file);
 
 PyObject* faulthandler_enable(PyObject *self,
-    PyObject *args);
+    PyObject *args,
+    PyObject *kwargs);
 void faulthandler_disable(void);
 PyObject* faulthandler_disable_py(PyObject *self);
 PyObject* faulthandler_isenabled(PyObject *self);

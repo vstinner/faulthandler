@@ -63,14 +63,19 @@ class FaultHandlerTests(unittest.TestCase):
                 output = re.sub(r"\[\d+ refs\]\r?\n?$", "", output)
         return output
 
-    def check_enabled(self, code, line_number, name, filename=None):
-        line = '  File "<string>", line %s in <module>' % line_number
+    def check_enabled(self, code, line_number, name,
+                      filename=None, all_threads=False):
         expected = [
             'Fatal Python error: ' + name,
-            '',
-            'Traceback (most recent call first):',
-            line]
+            '']
+        if all_threads:
+            expected.append('Current thread #1 (...):')
+        else:
+            expected.append('Traceback (most recent call first):')
+        expected.append('  File "<string>", line %s in <module>' % line_number)
         output = self.get_output(code, filename)
+        if all_threads:
+            output = normalize_threads(output)
         lines = output.splitlines()
         self.assertEqual(lines, expected)
 
@@ -118,14 +123,22 @@ class FaultHandlerTests(unittest.TestCase):
     def test_enable_file(self):
         with tempfile.NamedTemporaryFile() as f:
             self.check_enabled(
-                ("from __future__ import with_statement",
-                 "import faulthandler",
+                ("import faulthandler",
                  "output = open(%r, 'wb')" % f.name,
                  "faulthandler.enable(output)",
                  "faulthandler.sigsegv(True)"),
-                5,
+                4,
                 'Segmentation fault',
                 filename=f.name)
+
+    def test_enable_threads(self):
+        self.check_enabled(
+            ("import faulthandler",
+             "faulthandler.enable(all_threads=True)",
+             "faulthandler.sigsegv(True)"),
+            3,
+            'Segmentation fault',
+            all_threads=True)
 
     def check_disabled(self, *code):
         not_expected = 'Fatal Python error'
