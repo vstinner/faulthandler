@@ -29,7 +29,14 @@ from os.path import join as path_join
 
 VERSION = "1.4"
 
-FILENAMES = ('backtrace.c', 'handler.c', 'module.c', 'user.c', 'tests.c')
+FILENAMES = (
+    'backtrace.c',
+    'handler.c',
+    'later.c',
+    'module.c',
+    'tests.c',
+    'user.c',
+)
 
 CLASSIFIERS = [
     'Development Status :: 5 - Production/Stable',

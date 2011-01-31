@@ -137,8 +137,8 @@ faulthandler_unload(void)
 #ifdef FAULTHANDLER_LATER
     faulthandler_cancel_dumpbacktrace_later();
 #endif
-    faulthandler_unregister_all();
-    faulthandler_disable();
+    faulthandler_unload_user();
+    faulthandler_unload_fatal_error();
 #ifdef HAVE_SIGALTSTACK
     if (stack.ss_sp != NULL) {
         PyMem_Free(stack.ss_sp);

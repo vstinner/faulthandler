@@ -174,14 +174,14 @@ faulthandler_unregister_py(PyObject *self, PyObject *args)
 }
 
 void
-faulthandler_unregister_all()
+faulthandler_unload_user()
 {
     unsigned int i;
 
     for (i=0; i < user_signals.nsignal; i++) {
         faulthandler_unregister(&user_signals.signals[i]);
-        /* don't release user->file: faulthandler_unregister_all()
-           is called to late */
+        /* don't release user->file: faulthandler_unload_user()
+           is called too late */
     }
     user_signals.nsignal = 0;
     free(user_signals.signals);

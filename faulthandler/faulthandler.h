@@ -42,6 +42,7 @@ PyObject* faulthandler_enable(PyObject *self,
 void faulthandler_disable(void);
 PyObject* faulthandler_disable_py(PyObject *self);
 PyObject* faulthandler_isenabled(PyObject *self);
+void faulthandler_unload_fatal_error(void);
 
 void faulthandler_dump_backtrace(int fd, PyThreadState *tstate, int write_header);
 const char* faulthandler_dump_backtrace_threads(
@@ -75,7 +76,7 @@ PyObject* faulthandler_register(PyObject *self,
     PyObject *args, PyObject *kwargs);
 PyObject* faulthandler_unregister_py(PyObject *self,
     PyObject *args);
-void faulthandler_unregister_all(void);
+void faulthandler_unload_user(void);
 
 #endif
 
