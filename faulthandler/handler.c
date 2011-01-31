@@ -1,16 +1,6 @@
 #include "faulthandler.h"
 #include <signal.h>
 
-/* Forward */
-static void faulthandler_unload(void);
-static void faulthandler_disable(void);
-
-#ifdef HAVE_SIGACTION
-typedef struct sigaction _Py_sighandler_t;
-#else
-typedef PyOS_sighandler_t _Py_sighandler_t;
-#endif
-
 #ifdef HAVE_SIGALTSTACK
 static stack_t stack;
 #endif
@@ -21,13 +11,6 @@ static PyObject *fatal_error_file = NULL;
 /* fileno(stderr)=2: the value is replaced in faulthandler_enable() */
 static int fatal_error_fd = 2;
 
-typedef struct {
-    int signum;
-    int enabled;
-    const char* name;
-    _Py_sighandler_t previous;
-} fault_handler_t;
-
 static struct {
     PyObject *file;
     int fd;
@@ -36,20 +19,20 @@ static struct {
     int all_threads;
 } fault_alarm;
 
-static int fault_signals[] = {
+fault_handler_t faulthandler_handlers[] = {
 #ifdef SIGBUS
-    SIGBUS,
+    {SIGBUS, 0, "Bus error", },
 #endif
 #ifdef SIGILL
-    SIGILL,
+    {SIGILL, 0, "Illegal instruction", },
 #endif
-    SIGFPE,
+    {SIGFPE, 0, "Floating point exception", },
     /* define SIGSEGV at the end to make it the default choice if searching the
        handler fails in faulthandler_fatal_error() */
-    SIGSEGV
+    {SIGSEGV, 0, "Segmentation fault", }
 };
-#define NFAULT_SIGNALS (sizeof(fault_signals) / sizeof(fault_signals[0]))
-static fault_handler_t fault_handlers[NFAULT_SIGNALS];
+unsigned char faulthandler_nsignals = \
+    sizeof(faulthandler_handlers) / sizeof(faulthandler_handlers[0]);
 
 /* Fault handler: display the current Python backtrace and restore the previous
    handler. It should only use signal-safe functions. The previous handler will
@@ -65,8 +48,8 @@ faulthandler_fatal_error(int signum)
     PyThreadState *tstate;
 
     /* restore the previous handler */
-    for (i=0; i < NFAULT_SIGNALS; i++) {
-        handler = &fault_handlers[i];
+    for (i=0; i < faulthandler_nsignals; i++) {
+        handler = &faulthandler_handlers[i];
         if (handler->signum == signum)
             break;
     }
@@ -128,8 +111,8 @@ faulthandler_enable(PyObject *self, PyObject *args)
     if (!faulthandler_enabled) {
         faulthandler_enabled = 1;
 
-        for (i=0; i < NFAULT_SIGNALS; i++) {
-            handler = &fault_handlers[i];
+        for (i=0; i < faulthandler_nsignals; i++) {
+            handler = &faulthandler_handlers[i];
 #ifdef HAVE_SIGACTION
             action.sa_handler = faulthandler_fatal_error;
             sigemptyset(&action.sa_mask);
@@ -152,7 +135,7 @@ faulthandler_enable(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-static void
+void
 faulthandler_disable()
 {
     unsigned int i;
@@ -161,8 +144,8 @@ faulthandler_disable()
     Py_CLEAR(fatal_error_file);
 
     if (faulthandler_enabled) {
-        for (i=0; i < NFAULT_SIGNALS; i++) {
-            handler = &fault_handlers[i];
+        for (i=0; i < faulthandler_nsignals; i++) {
+            handler = &faulthandler_handlers[i];
             if (!handler->enabled)
                 continue;
 #ifdef HAVE_SIGACTION
@@ -291,60 +274,4 @@ faulthandler_cancel_dumpbacktrace_later_py(PyObject *self)
     Py_RETURN_NONE;
 }
 #endif
-
-void
-faulthandler_init()
-{
-    unsigned int i;
-    fault_handler_t *handler;
-
-    faulthandler_enabled = 0;
-
-    for (i=0; i < NFAULT_SIGNALS; i++) {
-        handler = &fault_handlers[i];
-        handler->signum = fault_signals[i];
-        handler->enabled = 0;
-        if (handler->signum == SIGFPE)
-            handler->name = "Floating point exception";
-#ifdef SIGBUS
-        else if (handler->signum == SIGBUS)
-            handler->name = "Bus error";
-#endif
-#ifdef SIGILL
-        else if (handler->signum == SIGILL)
-            handler->name = "Illegal instruction";
-#endif
-        else
-            handler->name = "Segmentation fault";
-    }
-
-#ifdef HAVE_SIGALTSTACK
-    /* Try to allocate an alternate stack for faulthandler() signal handler to
-     * be able to allocate memory on the stack, even on a stack overflow. If it
-     * fails, ignore the error. */
-    stack.ss_flags = SS_ONSTACK;
-    stack.ss_size = SIGSTKSZ;
-    stack.ss_sp = PyMem_Malloc(stack.ss_size);
-    if (stack.ss_sp != NULL) {
-        (void)sigaltstack(&stack, NULL);
-    }
-#endif
-
-    (void)Py_AtExit(faulthandler_unload);
-}
-
-static void
-faulthandler_unload(void)
-{
-#ifdef FAULTHANDLER_LATER
-    faulthandler_cancel_dumpbacktrace_later();
-#endif
-    faulthandler_disable();
-#ifdef HAVE_SIGALTSTACK
-    if (stack.ss_sp != NULL) {
-        PyMem_Free(stack.ss_sp);
-        stack.ss_sp = NULL;
-    }
-#endif
-}
 

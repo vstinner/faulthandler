@@ -12,6 +12,22 @@
 
 #define PUTS(fd, str) write(fd, str, strlen(str))
 
+#ifdef HAVE_SIGACTION
+typedef struct sigaction _Py_sighandler_t;
+#else
+typedef PyOS_sighandler_t _Py_sighandler_t;
+#endif
+
+typedef struct {
+    int signum;
+    int enabled;
+    const char* name;
+    _Py_sighandler_t previous;
+} fault_handler_t;
+
+extern fault_handler_t faulthandler_handlers[];
+extern unsigned char faulthandler_nsignals;
+
 extern int faulthandler_enabled;
 
 void faulthandler_init(void);
@@ -23,6 +39,7 @@ int faulthandler_get_fileno(PyObject *file);
 
 PyObject* faulthandler_enable(PyObject *self,
     PyObject *args);
+void faulthandler_disable(void);
 PyObject* faulthandler_disable_py(PyObject *self);
 PyObject* faulthandler_isenabled(PyObject *self);
 
@@ -53,6 +70,12 @@ PyObject* faulthandler_sigbus(PyObject *self, PyObject *args);
 #if defined(SIGILL)
 PyObject* faulthandler_sigill(PyObject *self, PyObject *args);
 #endif
+
+PyObject* faulthandler_register(PyObject *self,
+    PyObject *args, PyObject *kwargs);
+PyObject* faulthandler_unregister_py(PyObject *self,
+    PyObject *args);
+void faulthandler_unregister_all(void);
 
 #endif
 

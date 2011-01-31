@@ -83,6 +83,14 @@ is interrupted (return EINTR). It it not available on Windows.
 enable() and dumpbacktrace_later() keep an internal reference to the output
 file. Use disable() and cancel_dumpbacktrace_later() to clear this reference.
 
+Dump the backtrace on an user signal:
+
+ * register(signum, file=sys.stderr, all_threads=False): register an handler
+   for the signal 'signum': dump the backtrace of the current thread, or of all
+   threads if all_threads is True, into file"
+ * unregister(signum): unregister the handler of the signal 'signum' registered
+   by register()
+
 Functions to test the fault handler:
 
  * sigbus(): raise a SIGBUS signal (Bus error)
@@ -104,7 +112,7 @@ Changelog
 Version 1.4 (under development)
 -------------------------------
 
-XXX
+ * Add register() and unregister() functions
 
 Version 1.3 (2011-01-31)
 ------------------------

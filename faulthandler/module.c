@@ -9,6 +9,9 @@
 
 #define VERSION 0x104
 
+/* Forward */
+static void faulthandler_unload(void);
+
 PyDoc_STRVAR(module_doc,
 "faulthandler module.");
 
@@ -36,6 +39,18 @@ static PyMethodDef module_methods[] = {
      PyDoc_STR("cancel_dumpbacktrace_later(): cancel the previous call "
                "to dumpbacktrace_later().")},
 #endif
+
+    {"register",
+     (PyCFunction)faulthandler_register, METH_VARARGS|METH_KEYWORDS,
+     PyDoc_STR("register(signum, file=sys.stderr, all_threads=False): "
+               "register an handler for the signal 'signum': dump the "
+               "backtrace of the current thread, or of all threads if "
+               "all_threads is True, into file")},
+    {"unregister",
+     faulthandler_unregister_py, METH_VARARGS|METH_KEYWORDS,
+     PyDoc_STR("unregister(signum): unregister the handler of the signal "
+                "'signum' registered by register()")},
+
     {"sigsegv", faulthandler_sigsegv, METH_VARARGS,
      PyDoc_STR("sigsegv(release_gil=False): raise a SIGSEGV signal")},
     {"sigfpe", (PyCFunction)faulthandler_sigfpe, METH_NOARGS,
@@ -88,7 +103,21 @@ initfaulthandler(void)
 #endif
     }
 
-    faulthandler_init();
+    faulthandler_enabled = 0;
+
+#ifdef HAVE_SIGALTSTACK
+    /* Try to allocate an alternate stack for faulthandler() signal handler to
+     * be able to allocate memory on the stack, even on a stack overflow. If it
+     * fails, ignore the error. */
+    stack.ss_flags = SS_ONSTACK;
+    stack.ss_size = SIGSTKSZ;
+    stack.ss_sp = PyMem_Malloc(stack.ss_size);
+    if (stack.ss_sp != NULL) {
+        (void)sigaltstack(&stack, NULL);
+    }
+#endif
+
+    (void)Py_AtExit(faulthandler_unload);
 
 #if PY_MAJOR_VERSION >= 3
     version = PyLong_FromLong(VERSION);
@@ -99,6 +128,22 @@ initfaulthandler(void)
 
 #if PY_MAJOR_VERSION >= 3
     return m;
+#endif
+}
+
+static void
+faulthandler_unload(void)
+{
+#ifdef FAULTHANDLER_LATER
+    faulthandler_cancel_dumpbacktrace_later();
+#endif
+    faulthandler_unregister_all();
+    faulthandler_disable();
+#ifdef HAVE_SIGALTSTACK
+    if (stack.ss_sp != NULL) {
+        PyMem_Free(stack.ss_sp);
+        stack.ss_sp = NULL;
+    }
 #endif
 }
 
