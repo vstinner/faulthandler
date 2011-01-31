@@ -159,6 +159,7 @@ faulthandler_unregister_py(PyObject *self, PyObject *args)
     }
 
     faulthandler_unregister(user);
+    Py_DECREF(user->file);
     if (user_signals.nsignal - index != 1) {
         size = user_signals.nsignal - index - 1;
         size *= sizeof(user_signals.signals[0]);
@@ -179,6 +180,8 @@ faulthandler_unregister_all()
 
     for (i=0; i < user_signals.nsignal; i++) {
         faulthandler_unregister(&user_signals.signals[i]);
+        /* don't release user->file: faulthandler_unregister_all()
+           is called to late */
     }
     user_signals.nsignal = 0;
     free(user_signals.signals);

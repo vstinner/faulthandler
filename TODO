@@ -2,4 +2,5 @@
  * handle "#ifdef HAVE_SIGACTION" and "#ifdef HAVE_SIGALTSTACK"
  * disable handlers at fork?
  * what about child processes?
+ * use something else than Py_AtExit() to unload the module?
 

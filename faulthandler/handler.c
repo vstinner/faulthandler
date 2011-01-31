@@ -162,8 +162,13 @@ faulthandler_disable()
 PyObject*
 faulthandler_disable_py(PyObject *self)
 {
+    if (!faulthandler_enabled) {
+        Py_INCREF(Py_False);
+        return Py_False;
+    }
     faulthandler_disable();
-    Py_RETURN_NONE;
+    Py_INCREF(Py_True);
+    return Py_True;
 }
 
 PyObject*
