@@ -32,16 +32,35 @@ def read_file(filename):
         output = fp.read()
     return decode_output(output)
 
+def normalize_threads(trace):
+    return re.sub(
+        r'Current thread #1 \(0x[0-9a-f]+\)',
+        'Current thread #1 (...)',
+        trace)
+
+def expected_backtrace(line1, line2, all_threads):
+    if all_threads:
+        expected = ['Current thread #1 (...):']
+    else:
+        expected = ['Traceback (most recent call first):']
+    expected.extend((
+        '  File "<string>", line %s in func' % line1,
+        '  File "<string>", line %s in <module>' % line2))
+    return expected
+
 class FaultHandlerTests(unittest.TestCase):
-    def get_output(self, code):
+    def get_output(self, code, filename=None):
         code = '\n'.join(code)
         process = subprocess.Popen(
             [sys.executable, '-c', code],
             stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
-        output = decode_output(stderr)
-        if Py_REF_DEBUG:
-            output = re.sub(r"\[\d+ refs\]\r?\n?$", "", output)
+        if filename:
+            output = read_file(filename)
+        else:
+            output = decode_output(stderr)
+            if Py_REF_DEBUG:
+                output = re.sub(r"\[\d+ refs\]\r?\n?$", "", output)
         return output
 
     def check_enabled(self, code, line_number, name, filename=None):
@@ -51,9 +70,7 @@ class FaultHandlerTests(unittest.TestCase):
             '',
             'Traceback (most recent call first):',
             line]
-        output = self.get_output(code)
-        if filename:
-            output = read_file(filename)
+        output = self.get_output(code, filename)
         lines = output.splitlines()
         self.assertEqual(lines, expected)
 
@@ -162,9 +179,7 @@ class FaultHandlerTests(unittest.TestCase):
             '  File "<string>", line 12 in funcA',
             '  File "<string>", line 14 in <module>'
         ]
-        trace = self.get_output(code)
-        if filename:
-            trace = read_file(filename)
+        trace = self.get_output(code, filename)
         trace = trace.splitlines()
         self.assertEqual(trace, expected)
 
@@ -202,9 +217,7 @@ class FaultHandlerTests(unittest.TestCase):
             'dump()',
             'waiter.stop = True',
             'waiter.join()',
-        ))
-        if filename:
-            output = read_file(filename)
+        ), filename)
         # Normalize newlines for Windows
         lines = '\n'.join(output.splitlines())
         if filename:
@@ -235,7 +248,7 @@ class FaultHandlerTests(unittest.TestCase):
             'import faulthandler',
             'import time',
             '',
-            'def slow_function(repeat, cancel):',
+            'def func(repeat, cancel):',
             '    if not repeat:',
             '        loops = 2',
             '    else:',
@@ -268,29 +281,16 @@ class FaultHandlerTests(unittest.TestCase):
             '    file = None',
             'faulthandler.dumpbacktrace_later(1, ',
             '    repeat=repeat, all_threads=%s, file=file)' % all_threads,
-            'slow_function(repeat, cancel)',
+            'func(repeat, cancel)',
             'if file is not None:',
             '    file.close()',
         )
-        stderr = self.get_output(code)
-        if filename:
-            trace = read_file(filename)
-        else:
-            trace = stderr
+        trace = self.get_output(code, filename)
         if all_threads:
-            trace = re.sub(
-                r'Current thread #1 \(0x[0-9a-f]+\)',
-                'Current thread #1 (...)',
-                trace)
+            trace = normalize_threads(trace)
         trace = trace.splitlines()
 
-        if all_threads:
-            expected = ['Current thread #1 (...):']
-        else:
-            expected = ['Traceback (most recent call first):']
-        expected.extend((
-            '  File "<string>", line 12 in slow_function',
-            '  File "<string>", line 37 in <module>'))
+        expected = expected_backtrace(12, 37, all_threads)
         if repeat:
             if cancel:
                 expected *= 2
@@ -324,6 +324,44 @@ class FaultHandlerTests(unittest.TestCase):
 
     def test_dumpbacktrace_later_file(self):
         self.check_dumpbacktrace_later(filename=True)
+
+    def check_register(self, filename=False, all_threads=False):
+        code = (
+            'import faulthandler',
+            'import os',
+            'import signal',
+            '',
+            'def func(signum):',
+            '    os.kill(os.getpid(), signum)',
+            '',
+            'signum = signal.SIGUSR1',
+            'if %s:' % bool(filename),
+            '    file = open(%r, "wb")' % filename,
+            'else:',
+            '    file = None',
+            'faulthandler.register(signum, file=file, all_threads=%s)' % all_threads,
+            'func(signum)',
+            'if file is not None:',
+            '    file.close()',
+        )
+        trace = self.get_output(code, filename)
+        if all_threads:
+            trace = normalize_threads(trace)
+        trace = trace.splitlines()
+        expected = expected_backtrace(6, 14, all_threads)
+        self.assertEqual(trace, expected,
+                         "%r != %r: use_filename=%s, all_threads=%s"
+                         % (trace, expected, bool(filename), all_threads))
+
+    def test_register(self):
+        self.check_register()
+
+    def test_register_file(self):
+        with tempfile.NamedTemporaryFile() as tmp:
+            self.check_register(filename=tmp.name)
+
+    def test_register_threads(self):
+        self.check_register(all_threads=True)
 
 if __name__ == "__main__":
     unittest.main()
