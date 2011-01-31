@@ -31,7 +31,7 @@ VERSION = "1.4"
 
 FILENAMES = (
     'backtrace.c',
-    'handler.c',
+    'fatal_error.c',
     'later.c',
     'module.c',
     'tests.c',
