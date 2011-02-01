@@ -12,13 +12,16 @@ Import the module and call faulthandler.enable() to enable the fault handler.
 The fault handler is called on catastrophic cases and so it can only use
 signal-safe functions (eg. it doesn't allocate memory on the heap). That's why
 the backtrace is limited: it only supports ASCII encoding (use the
-backslashreplace error handler for non-ASCII characters) and it doesn't print
+backslashreplace error handler for non-ASCII characters), doesn't print
 the source code in the backtrace (only the filename, the function name and the
-line number).
+line number), is limited to 100 frames and 100 threads.
 
-The Python backtrace is written to the standard error stream. Start your
-graphical applications in a terminal and run your server in foreground to see
-the backtrace.
+By default, the Python backtrace is written to the standard error stream. Start
+your graphical applications in a terminal and run your server in foreground to
+see the backtrace, or pass a file to faulthandler.enable().
+
+faulthandler is implemented in C using signal handlers to be able to dump a
+backtrace on a crash or when Python is blocked (eg. deadlock).
 
 Website: https://github.com/haypo/faulthandler/wiki/
 
@@ -57,6 +60,14 @@ install python-devel).
 
 faulthandler module API
 =======================
+
+There are 4 different ways to display the Python backtrace:
+
+ * enable(): on a crash
+ * dumpbacktrace_later(): after a certain amount of time (useful if you program
+   hangs)
+ * register(): by sending a signal (eg. SIGUSR1)
+ * dumpbacktrace(): explicitly
 
 Fault handler state (disabled by default):
 
