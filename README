@@ -114,6 +114,7 @@ Version 1.4 (under development)
 
  * Add register() and unregister() functions
  * Add optional all_threads argument to enable()
+ * Limit the backtrace to 100 threads
 
 Version 1.3 (2011-01-31)
 ------------------------

@@ -34,13 +34,13 @@ def read_file(filename):
 
 def normalize_threads(trace):
     return re.sub(
-        r'Current thread #1 \(0x[0-9a-f]+\)',
-        'Current thread #1 (...)',
+        r'Current thread 0x[0-9a-f]+',
+        'Current thread ...',
         trace)
 
 def expected_backtrace(line1, line2, all_threads):
     if all_threads:
-        expected = ['Current thread #1 (...):']
+        expected = ['Current thread ...:']
     else:
         expected = ['Traceback (most recent call first):']
     expected.extend((
@@ -69,7 +69,7 @@ class FaultHandlerTests(unittest.TestCase):
             'Fatal Python error: ' + name,
             '']
         if all_threads:
-            expected.append('Current thread #1 (...):')
+            expected.append('Current thread ...:')
         else:
             expected.append('Traceback (most recent call first):')
         expected.append('  File "<string>", line %s in <module>' % line_number)
@@ -238,12 +238,12 @@ class FaultHandlerTests(unittest.TestCase):
         else:
             lineno = 11
         regex = '\n'.join((
-            'Thread #2 \\(0x[0-9a-f]+\\):',
+            'Thread 0x[0-9a-f]+:',
             '  File "<string>", line 20 in run',
             '  File ".*threading.py", line [0-9]+ in __?bootstrap_inner',
             '  File ".*threading.py", line [0-9]+ in __?bootstrap',
             '',
-            'Current thread #1 \\(0x[0-9a-f]+\\):',
+            'Current thread 0x[0-9a-f]+:',
             '  File "<string>", line %s in dump' % lineno,
             '  File "<string>", line 25 in <module>',
         ))

@@ -9,6 +9,7 @@
 #endif
 
 #define MAX_FRAME_DEPTH 100
+#define MAX_NTHREADS 100
 
 #define PUTS(fd, str) write(fd, str, strlen(str))
 

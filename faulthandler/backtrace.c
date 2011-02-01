@@ -198,17 +198,14 @@ faulthandler_dump_backtrace(int fd, PyThreadState *tstate, int write_header)
 }
 
 static void
-write_thread_id(int fd, PyThreadState *tstate,
-                unsigned int local_id, int is_current)
+write_thread_id(int fd, PyThreadState *tstate, int is_current)
 {
     if (is_current)
-        PUTS(fd, "Current thread #");
+        PUTS(fd, "Current thread 0x");
     else
-        PUTS(fd, "Thread #");
-    dump_decimal(fd, local_id);
-    PUTS(fd, " (0x");
+        PUTS(fd, "Thread 0x");
     dump_hexadecimal(sizeof(long)*2, (unsigned long)tstate->thread_id, fd);
-    PUTS(fd, "):\n");
+    PUTS(fd, ":\n");
 }
 
 /*
@@ -221,8 +218,7 @@ faulthandler_dump_backtrace_threads(int fd, PyThreadState *current_thread)
 {
     PyInterpreterState *interp;
     PyThreadState *tstate;
-    int newline;
-    unsigned int local_id;
+    unsigned int nthreads;
 
     /* Get the current interpreter from the current thread */
     interp = current_thread->interp;
@@ -233,28 +229,18 @@ faulthandler_dump_backtrace_threads(int fd, PyThreadState *current_thread)
     if (tstate == NULL)
         return "unable to get the thread head state";
 
-    /* Count the number of threads */
-    local_id = 0;
-    do
-    {
-        local_id++;
-        tstate = PyThreadState_Next(tstate);
-    } while (tstate != NULL);
-
     /* Dump the backtrace of each thread */
     tstate = PyInterpreterState_ThreadHead(interp);
-    newline = 0;
+    nthreads = 0;
     do
     {
-        if (newline)
+        if (nthreads != 0)
             write(fd, "\n", 1);
-        else
-            newline = 1;
-        write_thread_id(fd, tstate, local_id, tstate == current_thread);
+        write_thread_id(fd, tstate, tstate == current_thread);
         faulthandler_dump_backtrace(fd, tstate, 0);
         tstate = PyThreadState_Next(tstate);
-        local_id--;
-    } while (tstate != NULL);
+        nthreads++;
+    } while (tstate != NULL && nthreads < MAX_NTHREADS);
 
     return NULL;
 }
