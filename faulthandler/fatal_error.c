@@ -2,7 +2,7 @@
 #include <signal.h>
 
 #ifdef HAVE_SIGALTSTACK
-static stack_t stack;
+stack_t faulthandler_stack;
 #endif
 
 static struct {
@@ -125,7 +125,7 @@ faulthandler_enable(PyObject *self, PyObject *args, PyObject *kwargs)
             sigemptyset(&action.sa_mask);
             action.sa_flags = 0;
 #ifdef HAVE_SIGALTSTACK
-            if (stack.ss_sp != NULL)
+            if (faulthandler_stack.ss_sp != NULL)
                 action.sa_flags |= SA_ONSTACK;
 #endif
             err = sigaction(handler->signum, &action, &handler->previous);

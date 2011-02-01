@@ -19,6 +19,10 @@ typedef struct sigaction _Py_sighandler_t;
 typedef PyOS_sighandler_t _Py_sighandler_t;
 #endif
 
+#ifndef _Windows
+#  define HAVE_SIGALTSTACK
+#endif
+
 typedef struct {
     int signum;
     int enabled;
@@ -29,6 +33,9 @@ typedef struct {
 
 extern fault_handler_t faulthandler_handlers[];
 extern unsigned char faulthandler_nsignals;
+#ifdef HAVE_SIGALTSTACK
+stack_t faulthandler_stack;
+#endif
 
 void faulthandler_init(void);
 
