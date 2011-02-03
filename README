@@ -66,7 +66,7 @@ There are 4 different ways to display the Python backtrace:
  * enable(): on a crash
  * dumpbacktrace_later(): after a certain amount of time (useful if you program
    hangs)
- * register(): by sending a signal (eg. SIGUSR1)
+ * register(): by sending a signal (eg. SIGUSR1). It doesn't work on Windows.
  * dumpbacktrace(): explicitly
 
 Fault handler state (disabled by default):
@@ -82,8 +82,7 @@ Dump the current backtrace:
  * dumpbacktrace_later(delay, repeat=False, file=sys.stderr, all_threads=False):
    dump the backtrace of the current thread, or of all threads if all_threads
    is True, in delay seconds, or each delay seconds if repeat is True. If the
-   function is called twice, the new call replaces previous parameters. Call
-   cancel_dumpbacktrace_later() to call the next request.
+   function is called twice, the new call replaces previous parameters.
  * cancel_dumpbacktrace_later(): cancel the previous call to
    dumpbacktrace_later()
 

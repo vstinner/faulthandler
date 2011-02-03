@@ -8,6 +8,10 @@
 #  define FAULTHANDLER_LATER
 #endif
 
+#ifndef MS_WINDOWS
+#  define HAVE_SIGALTSTACK
+#endif
+
 #define MAX_FRAME_DEPTH 100
 #define MAX_NTHREADS 100
 
@@ -17,10 +21,6 @@
 typedef struct sigaction _Py_sighandler_t;
 #else
 typedef PyOS_sighandler_t _Py_sighandler_t;
-#endif
-
-#ifndef _Windows
-#  define HAVE_SIGALTSTACK
 #endif
 
 typedef struct {

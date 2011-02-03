@@ -1,11 +1,12 @@
 from __future__ import with_statement
 import faulthandler; faulthandler.disable()
 import os
+import re
+import signal
 import subprocess
 import sys
-import unittest
-import re
 import tempfile
+import unittest
 
 Py_REF_DEBUG = hasattr(sys, 'gettotalrefcount')
 
@@ -338,6 +339,8 @@ class FaultHandlerTests(unittest.TestCase):
     def test_dumpbacktrace_later_file(self):
         self.check_dumpbacktrace_later(filename=True)
 
+    @skipIf(not hasattr(signal, "SIGUSR1"),
+            "need signal.SIGUSR1")
     def check_register(self, filename=False, all_threads=False):
         code = (
             'import faulthandler',

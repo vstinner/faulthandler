@@ -78,6 +78,27 @@ faulthandler_register(PyObject *self,
         return NULL;
     }
 
+    /* the following test comes from Python: Modules/signal.c */
+#ifdef MS_WINDOWS
+    /* Validate that sig_num is one of the allowable signals */
+    switch (signum) {
+    case SIGABRT: break;
+#ifdef SIGBREAK
+    /* Issue #10003: SIGBREAK is not documented as permitted, but works
+       and corresponds to CTRL_BREAK_EVENT. */
+    case SIGBREAK: break;
+#endif
+    case SIGFPE: break;
+    case SIGILL: break;
+    case SIGINT: break;
+    case SIGSEGV: break;
+    case SIGTERM: break;
+    default:
+        PyErr_SetString(PyExc_ValueError, "invalid signal value");
+        return NULL;
+    }
+#endif
+
     if (file == NULL || file == Py_None) {
         file = PySys_GetObject("stderr");
         if (file == NULL) {

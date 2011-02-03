@@ -1,5 +1,4 @@
  * write a tool to "preload" faulthandler and enable it
- * tests.py: test register() with something else than SIGUSR1 on Windows?
  * fix tests on Windows (permission denied)
  * disable handlers at fork?
  * what about child processes?
