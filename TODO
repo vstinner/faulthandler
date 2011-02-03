@@ -1,5 +1,4 @@
  * write a tool to "preload" faulthandler and enable it
- * fix tests on Windows (permission denied)
  * disable handlers at fork?
  * what about child processes?
  * use something else than Py_AtExit() to unload the module?

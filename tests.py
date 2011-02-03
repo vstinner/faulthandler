@@ -1,4 +1,5 @@
 from __future__ import with_statement
+from contextlib import contextmanager
 import faulthandler; faulthandler.disable()
 import os
 import re
@@ -48,6 +49,17 @@ def expected_backtrace(line1, line2, all_threads):
         '  File "<string>", line %s in func' % line1,
         '  File "<string>", line %s in <module>' % line2))
     return expected
+
+@contextmanager
+def temporary_filename():
+   filename = tempfile.mktemp()
+   try:
+       yield filename
+   finally:
+       try:
+           os.unlink(filename)
+       except OSError:
+           pass
 
 class FaultHandlerTests(unittest.TestCase):
     def get_output(self, code, filename=None):
@@ -122,15 +134,15 @@ class FaultHandlerTests(unittest.TestCase):
             'Segmentation fault')
 
     def test_enable_file(self):
-        with tempfile.NamedTemporaryFile() as f:
+        with temporary_filename() as filename:
             self.check_enabled(
                 ("import faulthandler",
-                 "output = open(%r, 'wb')" % f.name,
+                 "output = open(%r, 'wb')" % filename,
                  "faulthandler.enable(output)",
                  "faulthandler.sigsegv(True)"),
                 4,
                 'Segmentation fault',
-                filename=f.name)
+                filename=filename)
 
     def test_enable_threads(self):
         self.check_enabled(
@@ -199,8 +211,8 @@ class FaultHandlerTests(unittest.TestCase):
 
     def test_dumpbacktrace(self):
         self.check_dumpbacktrace(None)
-        with tempfile.NamedTemporaryFile() as f:
-            self.check_dumpbacktrace(f.name)
+        with temporary_filename() as filename:
+            self.check_dumpbacktrace(filename)
 
     def check_dumpbacktrace_threads(self, filename):
         output = self.get_output((
@@ -249,13 +261,12 @@ class FaultHandlerTests(unittest.TestCase):
             '  File "<string>", line 25 in <module>',
         ))
         self.assertTrue(re.match(regex, lines),
-                        "<<<%s>>> doesn't match, use_filename=%s"
-                        % (lines, bool(filename)))
+                        "<<<%s>>> doesn't match" % lines)
 
     def test_dumpbacktrace_threads(self):
         self.check_dumpbacktrace_threads(None)
-        with tempfile.NamedTemporaryFile() as tmp:
-            self.check_dumpbacktrace_threads(tmp.name)
+        with temporary_filename() as filename:
+            self.check_dumpbacktrace_threads(filename)
 
     def _check_dumpbacktrace_later(self, repeat, cancel,
                                    filename, all_threads):
@@ -318,10 +329,10 @@ class FaultHandlerTests(unittest.TestCase):
     @skipIf(not hasattr(faulthandler, 'dumpbacktrace_later'),
             'need faulthandler.dumpbacktrace_later()')
     def check_dumpbacktrace_later(self, repeat=False, cancel=False,
-                                  all_threads=False, filename=False):
-        if filename:
-            with tempfile.NamedTemporaryFile() as f:
-                self._check_dumpbacktrace_later(repeat, cancel, f.name, all_threads)
+                                  all_threads=False, file=False):
+        if file:
+            with temporary_filename() as filename:
+                self._check_dumpbacktrace_later(repeat, cancel, filename, all_threads)
         else:
             self._check_dumpbacktrace_later(repeat, cancel, None, all_threads)
 
@@ -338,7 +349,7 @@ class FaultHandlerTests(unittest.TestCase):
         self.check_dumpbacktrace_later(all_threads=True)
 
     def test_dumpbacktrace_later_file(self):
-        self.check_dumpbacktrace_later(filename=True)
+        self.check_dumpbacktrace_later(file=True)
 
     @skipIf(not hasattr(signal, "SIGUSR1"),
             "need signal.SIGUSR1")
@@ -374,8 +385,8 @@ class FaultHandlerTests(unittest.TestCase):
         self.check_register()
 
     def test_register_file(self):
-        with tempfile.NamedTemporaryFile() as tmp:
-            self.check_register(filename=tmp.name)
+        with temporary_filename() as filename:
+            self.check_register(filename=filename)
 
     def test_register_threads(self):
         self.check_register(all_threads=True)
