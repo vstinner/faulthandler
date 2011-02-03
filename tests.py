@@ -206,7 +206,7 @@ class FaultHandlerTests(unittest.TestCase):
         output = self.get_output((
             'from __future__ import with_statement',
             'import faulthandler',
-            'from threading import Thread',
+            'from threading import Thread, Event',
             'import time',
             '',
             'def dump():',
@@ -219,15 +219,15 @@ class FaultHandlerTests(unittest.TestCase):
             'class Waiter(Thread):',
             '    def __init__(self):',
             '        Thread.__init__(self)',
-            '        self.stop = False',
+            '        self.running = Event()',
             '',
             '    def run(self):',
-            '        while not self.stop:',
-            '            time.sleep(0.1)',
+            '        self.running.set()',
+            '        time.sleep(5.0)',
             '',
             'waiter = Waiter()',
             'waiter.start()',
-            'time.sleep(0.1)',
+            'waiter.running.wait()',
             'dump()',
             'waiter.stop = True',
             'waiter.join()',
@@ -249,7 +249,8 @@ class FaultHandlerTests(unittest.TestCase):
             '  File "<string>", line 25 in <module>',
         ))
         self.assertTrue(re.match(regex, lines),
-                        "<<<%s>>> doesn't match" % lines)
+                        "<<<%s>>> doesn't match, use_filename=%s"
+                        % (lines, bool(filename)))
 
     def test_dumpbacktrace_threads(self):
         self.check_dumpbacktrace_threads(None)
