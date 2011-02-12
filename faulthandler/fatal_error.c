@@ -2,7 +2,7 @@
 #include <signal.h>
 
 #ifdef HAVE_SIGALTSTACK
-stack_t faulthandler_stack;
+extern stack_t faulthandler_stack;
 #endif
 
 static struct {

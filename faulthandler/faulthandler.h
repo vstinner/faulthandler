@@ -33,9 +33,6 @@ typedef struct {
 
 extern fault_handler_t faulthandler_handlers[];
 extern unsigned char faulthandler_nsignals;
-#ifdef HAVE_SIGALTSTACK
-stack_t faulthandler_stack;
-#endif
 
 void faulthandler_init(void);
 

@@ -9,6 +9,10 @@
 
 #define VERSION 0x104
 
+#ifdef HAVE_SIGALTSTACK
+stack_t faulthandler_stack;
+#endif
+
 /* Forward */
 static void faulthandler_unload(void);
 
