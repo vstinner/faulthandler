@@ -20,7 +20,7 @@ static struct {
 static void
 faulthandler_user(int signum)
 {
-    user_signal_t *user;
+    user_signal_t *user = NULL;
     unsigned int i;
     PyThreadState *tstate;
 
