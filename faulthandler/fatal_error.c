@@ -41,7 +41,7 @@ faulthandler_fatal_error(int signum)
 {
     const int fd = fatal_error.fd;
     unsigned int i;
-    fault_handler_t *handler;
+    fault_handler_t *handler = NULL;
     PyThreadState *tstate;
 
     /* restore the previous handler */

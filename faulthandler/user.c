@@ -20,7 +20,7 @@ static struct {
 static void
 faulthandler_user(int signum)
 {
-    user_signal_t *user;
+    user_signal_t *user = NULL;
     unsigned int i;
     PyThreadState *tstate;
 
@@ -28,6 +28,10 @@ faulthandler_user(int signum)
         user = &user_signals.signals[i];
         if (user->signum == signum)
             break;
+    }
+    if (user == NULL) {
+        /* user_signals.nsignal == 0 */
+        return;
     }
 
     /* PyThreadState_Get() doesn't give the state of the current thread if
