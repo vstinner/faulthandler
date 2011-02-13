@@ -117,8 +117,10 @@ faulthandler_register(PyObject *self,
 
     user_signals.nsignal++;
     size = user_signals.nsignal * sizeof(user_signal_t);
-    if (size / user_signals.nsignal != sizeof(user_signal_t))
+    if (size / user_signals.nsignal != sizeof(user_signal_t)) {
+        /* integer overflow */
         return PyErr_NoMemory();
+    }
     signals = realloc(user_signals.signals, size);
     if (signals == NULL)
         return PyErr_NoMemory();
