@@ -236,11 +236,15 @@ faulthandler_dump_backtrace_threads(int fd, PyThreadState *current_thread)
     {
         if (nthreads != 0)
             write(fd, "\n", 1);
+        if (nthreads >= MAX_NTHREADS) {
+            PUTS(fd, "...\n");
+            break;
+        }
         write_thread_id(fd, tstate, tstate == current_thread);
         faulthandler_dump_backtrace(fd, tstate, 0);
         tstate = PyThreadState_Next(tstate);
         nthreads++;
-    } while (tstate != NULL && nthreads < MAX_NTHREADS);
+    } while (tstate != NULL);
 
     return NULL;
 }
