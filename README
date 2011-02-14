@@ -119,8 +119,8 @@ the major version, and "version & 255" to get the minor version.
 Changelog
 =========
 
-Version 1.4 (under development)
--------------------------------
+Version 1.4 (2011-02-14)
+------------------------
 
  * Add register() and unregister() functions
  * Add optional all_threads argument to enable()
