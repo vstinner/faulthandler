@@ -46,6 +46,7 @@ CLASSIFIERS = [
     'Natural Language :: English',
     'Programming Language :: C',
     'Programming Language :: Python',
+    'Programming Language :: Python :: 3',
     'Topic :: Software Development :: Debuggers',
     'Topic :: Software Development :: Libraries :: Python Modules',
 ]
