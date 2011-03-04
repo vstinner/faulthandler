@@ -209,6 +209,6 @@ See also
 
  * http://bugs.python.org/issue8863 (may 2010):
    Display Python backtrace on SIGSEGV, SIGFPE and fatal error
- * http://bugs.python.org/issue3999 (sept. 2009):
+ * http://bugs.python.org/issue3999 (sept. 2008):
    Real segmentation fault handler
 
