@@ -12,9 +12,10 @@ Import the module and call faulthandler.enable() to enable the fault handler.
 The fault handler is called on catastrophic cases and so it can only use
 signal-safe functions (eg. it doesn't allocate memory on the heap). That's why
 the backtrace is limited: it only supports ASCII encoding (use the
-backslashreplace error handler for non-ASCII characters), doesn't print
-the source code in the backtrace (only the filename, the function name and the
-line number), is limited to 100 frames and 100 threads.
+backslashreplace error handler for non-ASCII characters) and limits each string
+to 100 characters, doesn't print the source code in the backtrace (only the
+filename, the function name and the line number), is limited to 100 frames and
+100 threads.
 
 By default, the Python backtrace is written to the standard error stream. Start
 your graphical applications in a terminal and run your server in foreground to
@@ -122,7 +123,7 @@ Changelog
 Version 1.5 (under development)
 -------------------------------
 
-(no change yet)
+ * Limit strings to 100 characters
 
 Version 1.4 (2011-02-14)
 ------------------------

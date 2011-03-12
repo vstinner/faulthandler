@@ -1,6 +1,8 @@
 #include "faulthandler.h"
 #include <frameobject.h>
 
+#define MAX_LENGTH 100
+
 #if PY_MAJOR_VERSION >= 3
 #  define PYSTRING_CHECK PyUnicode_Check
 #  define PYINT_CHECK PyLong_Check
@@ -70,12 +72,29 @@ static void
 dump_ascii(int fd, PyObject *text)
 {
     Py_ssize_t i, size;
+    int truncated;
 #if PY_MAJOR_VERSION >= 3
     Py_UNICODE *u;
     char c;
 
     size = PyUnicode_GET_SIZE(text);
     u = PyUnicode_AS_UNICODE(text);
+#else
+    char *s;
+    unsigned char c;
+
+    size = PyString_GET_SIZE(text);
+    s = PyString_AS_STRING(text);
+#endif
+
+    if (MAX_LENGTH < size) {
+        size = MAX_LENGTH;
+        truncated = 1;
+    }
+    else
+        truncated = 0;
+
+#if PY_MAJOR_VERSION >= 3
     for (i=0; i < size; i++, u++) {
         if (*u < 128) {
             c = (char)*u;
@@ -101,11 +120,6 @@ dump_ascii(int fd, PyObject *text)
         }
     }
 #else
-    char *s;
-    unsigned char c;
-
-    size = PyString_GET_SIZE(text);
-    s = PyString_AS_STRING(text);
     for (i=0; i < size; i++, s++) {
         c = *s;
         if (c < 128) {
@@ -117,6 +131,8 @@ dump_ascii(int fd, PyObject *text)
         }
     }
 #endif
+    if (truncated)
+        PUTS(fd, "...");
 }
 
 /* Write a frame into the file fd: "File "xxx", line xxx in xxx" */
