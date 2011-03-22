@@ -9,11 +9,14 @@ static struct {
     int all_threads;
 } fault_alarm;
 
-/*
- * Handler of the SIGALRM signal: dump the backtrace of the current thread or
- * of all threads if fault_alarm.all_threads is true. On success, register
- * itself again if fault_alarm.repeat is true.
- */
+/* Handler of the SIGALRM signal.
+
+   Dump the backtrace of the current thread, or of all threads if
+   fault_alarm.all_threads is true. On success, register itself again if
+   fault_alarm.repeat is true.
+
+   This function is signal safe and should only call signal safe functions. */
+
 static void
 faulthandler_alarm(int signum)
 {

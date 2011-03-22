@@ -13,10 +13,13 @@ static struct {
     user_signal_t *signals;
 } user_signals = {0, NULL};
 
-/*
- * Handler of user signals: dump the backtrace of the current thread, or of all
- * threads if fault_alarm.all_threads is true.
- */
+/* Handler of user signals (e.g. SIGUSR1).
+
+   Dump the backtrace of the current thread, or of all threads if
+   fault_alarm.all_threads is true.
+
+   This function is signal safe and should only call signal safe functions. */
+
 static void
 faulthandler_user(int signum)
 {

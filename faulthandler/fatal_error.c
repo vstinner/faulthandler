@@ -31,10 +31,13 @@ fault_handler_t faulthandler_handlers[] = {
 unsigned char faulthandler_nsignals = \
     sizeof(faulthandler_handlers) / sizeof(faulthandler_handlers[0]);
 
-/* Fault handler: display the current Python backtrace and restore the previous
-   handler. It should only use signal-safe functions. The previous handler will
-   be called when the fault handler exits, because the fault will occur
-   again. */
+/* Handler of SIGSEGV, SIGFPE, SIGBUS and SIGILL signals.
+
+   Display the current Python backtrace and restore the previous handler. The
+   previous handler will be called when the fault handler exits, because the
+   fault will occur again.
+
+   This function is signal safe and should only call signal safe functions. */
 
 void
 faulthandler_fatal_error(int signum)

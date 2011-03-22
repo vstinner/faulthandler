@@ -13,6 +13,10 @@
 #  define PYINT_ASLONG PyInt_AsLong
 #endif
 
+/* Reverse a string. For example, "abcd" becomes "dcba".
+
+   This function is signal safe. */
+
 static void
 reverse_string(char *text, const size_t len)
 {
@@ -28,7 +32,9 @@ reverse_string(char *text, const size_t len)
 }
 
 /* Format an integer in range [0; 999999] to decimal,
-   and write it into the file fd */
+   and write it into the file fd.
+
+   This function is signal safe. */
 
 static void
 dump_decimal(int fd, int value)
@@ -48,7 +54,9 @@ dump_decimal(int fd, int value)
 }
 
 /* Format an integer in range [0; 0xffffffff] to hexdecimal of 'width' digits,
-   and write it into the file fd */
+   and write it into the file fd.
+
+   This function is signal safe. */
 
 static void
 dump_hexadecimal(int width, unsigned long value, int fd)
@@ -66,7 +74,9 @@ dump_hexadecimal(int width, unsigned long value, int fd)
     write(fd, buffer, len);
 }
 
-/* Write an unicode object into the file fd using ascii+backslashreplace */
+/* Write an unicode object into the file fd using ascii+backslashreplace.
+
+   This function is signal safe. */
 
 static void
 dump_ascii(int fd, PyObject *text)
@@ -135,7 +145,9 @@ dump_ascii(int fd, PyObject *text)
         PUTS(fd, "...");
 }
 
-/* Write a frame into the file fd: "File "xxx", line xxx in xxx" */
+/* Write a frame into the file fd: "File "xxx", line xxx in xxx".
+
+   This function is signal safe. */
 
 static void
 dump_frame(int fd, PyFrameObject *frame)
@@ -185,7 +197,8 @@ dump_frame(int fd, PyFrameObject *frame)
 
    Write only the first MAX_FRAME_DEPTH frames. If the traceback is truncated, write
    the line "  ...".
- */
+
+   This function is signal safe. */
 
 void
 faulthandler_dump_backtrace(int fd, PyThreadState *tstate, int write_header)
@@ -213,6 +226,11 @@ faulthandler_dump_backtrace(int fd, PyThreadState *tstate, int write_header)
     }
 }
 
+/* Write the thread identifier into the file 'fd': "Current thread 0xHHHH:\" if
+   is_current is true, "Thread 0xHHHH:\n" otherwise.
+
+   This function is signal safe. */
+
 static void
 write_thread_id(int fd, PyThreadState *tstate, int is_current)
 {
@@ -224,11 +242,11 @@ write_thread_id(int fd, PyThreadState *tstate, int is_current)
     PUTS(fd, ":\n");
 }
 
-/*
- * Dump the backtrace of all threads.
- *
- * Return NULL on success, or an error message on error.
- */
+/* Dump the backtrace of all threads. Return NULL on success, or an error
+   message on error.
+
+   This function is signal safe. */
+
 const char*
 faulthandler_dump_backtrace_threads(int fd, PyThreadState *current_thread)
 {
