@@ -30,7 +30,7 @@ from os.path import join as path_join
 VERSION = "1.5"
 
 FILENAMES = (
-    'backtrace.c',
+    'traceback.c',
     'fatal_error.c',
     'later.c',
     'module.c',
@@ -58,7 +58,7 @@ options = {
     'name': "faulthandler",
     'version': VERSION,
     'license': "BSD (2-clause)",
-    'description': 'Display the Python backtrace on a crash',
+    'description': 'Display the Python traceback on a crash',
     'long_description': long_description,
     'url': "https://github.com/haypo/faulthandler/wiki/",
     'author': 'Victor Stinner',
