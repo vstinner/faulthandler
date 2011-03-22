@@ -52,7 +52,7 @@ faulthandler_alarm(int signum)
 }
 
 PyObject*
-faulthandler_dumpbacktrace_later(PyObject *self, PyObject *args, PyObject *kwargs)
+faulthandler_dump_backtrace_later(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     static char *kwlist[] = {"delay", "repeat", "file", "all_threads", NULL};
     int delay;
@@ -102,7 +102,7 @@ faulthandler_dumpbacktrace_later(PyObject *self, PyObject *args, PyObject *kwarg
 }
 
 void
-faulthandler_unload_dumpbacktrace_later()
+faulthandler_unload_dump_backtrace_later()
 {
     alarm(0);
     /* Don't call Py_CLEAR(fault_alarm.file): this function is called too late,
@@ -110,7 +110,7 @@ faulthandler_unload_dumpbacktrace_later()
 }
 
 PyObject*
-faulthandler_cancel_dumpbacktrace_later_py(PyObject *self)
+faulthandler_cancel_dump_backtrace_later_py(PyObject *self)
 {
     alarm(0);
     Py_CLEAR(fault_alarm.file);

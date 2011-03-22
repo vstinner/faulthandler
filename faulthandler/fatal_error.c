@@ -187,7 +187,7 @@ faulthandler_disable_py(PyObject *self)
 }
 
 PyObject*
-faulthandler_isenabled(PyObject *self)
+faulthandler_is_enabled(PyObject *self)
 {
     return PyBool_FromLong(fatal_error.enabled);
 }

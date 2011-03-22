@@ -22,24 +22,24 @@ static PyMethodDef module_methods[] = {
                "enable the fault handler")},
     {"disable", (PyCFunction)faulthandler_disable_py, METH_NOARGS,
      PyDoc_STR("disable(): disable the fault handler")},
-    {"isenabled", (PyCFunction)faulthandler_isenabled, METH_NOARGS,
-     PyDoc_STR("isenabled()->bool: check if the handler is enabled")},
-    {"dumpbacktrace",
+    {"is_enabled", (PyCFunction)faulthandler_is_enabled, METH_NOARGS,
+     PyDoc_STR("is_enabled()->bool: check if the handler is enabled")},
+    {"dump_backtrace",
      (PyCFunction)faulthandler_dump_backtrace_py, METH_VARARGS|METH_KEYWORDS,
-     PyDoc_STR("dumpbacktrace(file=sys.stderr, all_threads=False): "
+     PyDoc_STR("dump_backtrace(file=sys.stderr, all_threads=False): "
                "dump the backtrace of the current thread, or of all threads "
                "if all_threads is True, into file")},
 #ifdef FAULTHANDLER_LATER
-    {"dumpbacktrace_later",
-     (PyCFunction)faulthandler_dumpbacktrace_later, METH_VARARGS|METH_KEYWORDS,
-     PyDoc_STR("dumpbacktrace_later(delay, repeat=False, file=sys.stderr, all_threads=False): "
+    {"dump_backtrace_later",
+     (PyCFunction)faulthandler_dump_backtrace_later, METH_VARARGS|METH_KEYWORDS,
+     PyDoc_STR("dump_backtrace_later(delay, repeat=False, file=sys.stderr, all_threads=False): "
                "dump the backtrace of the current thread, or of all threads "
                "if all_threads is True, in delay seconds, or each delay "
                "seconds if repeat is True.")},
-    {"cancel_dumpbacktrace_later",
-     (PyCFunction)faulthandler_cancel_dumpbacktrace_later_py, METH_NOARGS,
-     PyDoc_STR("cancel_dumpbacktrace_later(): cancel the previous call "
-               "to dumpbacktrace_later().")},
+    {"cancel_dump_backtrace_later",
+     (PyCFunction)faulthandler_cancel_dump_backtrace_later_py, METH_NOARGS,
+     PyDoc_STR("cancel_dump_backtrace_later(): cancel the previous call "
+               "to dump_backtrace_later().")},
 #endif
 
     {"register",
@@ -135,7 +135,7 @@ static void
 faulthandler_unload(void)
 {
 #ifdef FAULTHANDLER_LATER
-    faulthandler_unload_dumpbacktrace_later();
+    faulthandler_unload_dump_backtrace_later();
 #endif
     faulthandler_unload_user();
     faulthandler_unload_fatal_error();

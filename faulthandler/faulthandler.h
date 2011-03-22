@@ -49,7 +49,7 @@ PyObject* faulthandler_enable(PyObject *self,
     PyObject *kwargs);
 void faulthandler_disable(void);
 PyObject* faulthandler_disable_py(PyObject *self);
-PyObject* faulthandler_isenabled(PyObject *self);
+PyObject* faulthandler_is_enabled(PyObject *self);
 void faulthandler_unload_fatal_error(void);
 
 void faulthandler_dump_backtrace(int fd, PyThreadState *tstate, int write_header);
@@ -62,11 +62,11 @@ PyObject* faulthandler_dump_backtrace_py(PyObject *self,
     PyObject *kwargs);
 
 #ifdef FAULTHANDLER_LATER
-PyObject* faulthandler_dumpbacktrace_later(PyObject *self,
+PyObject* faulthandler_dump_backtrace_later(PyObject *self,
     PyObject *args,
     PyObject *kwargs);
-PyObject* faulthandler_cancel_dumpbacktrace_later_py(PyObject *self);
-void faulthandler_unload_dumpbacktrace_later(void);
+PyObject* faulthandler_cancel_dump_backtrace_later_py(PyObject *self);
+void faulthandler_unload_dump_backtrace_later(void);
 #endif
 
 PyObject* faulthandler_sigsegv(PyObject *self, PyObject *args);
