@@ -46,7 +46,9 @@ faulthandler_alarm(int signum)
     if (ok && fault_alarm.repeat)
         alarm(fault_alarm.delay);
     else
-        faulthandler_cancel_dumpbacktrace_later();
+        /* don't call Py_CLEAR() here because it may call _Py_Dealloc() which
+           is not signal safe */
+        alarm(0);
 }
 
 PyObject*
@@ -102,8 +104,8 @@ faulthandler_dumpbacktrace_later(PyObject *self, PyObject *args, PyObject *kwarg
 void
 faulthandler_cancel_dumpbacktrace_later()
 {
-    Py_CLEAR(fault_alarm.file);
     alarm(0);
+    Py_CLEAR(fault_alarm.file);
 }
 
 PyObject*

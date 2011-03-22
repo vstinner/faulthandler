@@ -124,6 +124,9 @@ Version 1.5 (under development)
 -------------------------------
 
  * Limit strings to 100 characters
+ * dumpbacktrace_later() signal handler doesn't clear its reference to the
+   file because Py_CLEAR() is not signal safe: you have to call explicitly
+   cancel_dumpbacktrace_later()
 
 Version 1.4 (2011-02-14)
 ------------------------
