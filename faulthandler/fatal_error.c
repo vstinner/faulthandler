@@ -50,6 +50,11 @@ faulthandler_fatal_error(int signum)
         if (handler->signum == signum)
             break;
     }
+    if (handler == NULL) {
+        /* faulthandler_nsignals == 0 (unlikely) */
+        return;
+    }
+
 #ifdef HAVE_SIGACTION
     (void)sigaction(handler->signum, &handler->previous, NULL);
 #else

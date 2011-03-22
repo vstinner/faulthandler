@@ -30,7 +30,7 @@ faulthandler_user(int signum)
             break;
     }
     if (user == NULL) {
-        /* user_signals.nsignal == 0 */
+        /* user_signals.nsignal == 0 (unlikely) */
         return;
     }
 
