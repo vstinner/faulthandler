@@ -11,7 +11,7 @@ static struct {
 
 /* Handler of the SIGALRM signal.
 
-   Dump the backtrace of the current thread, or of all threads if
+   Dump the traceback of the current thread, or of all threads if
    fault_alarm.all_threads is true. On success, register itself again if
    fault_alarm.repeat is true.
 
@@ -35,11 +35,11 @@ faulthandler_alarm(int signum)
     if (fault_alarm.all_threads) {
         const char* errmsg;
 
-        errmsg = faulthandler_dump_backtrace_threads(fault_alarm.fd, tstate);
+        errmsg = faulthandler_dump_traceback_threads(fault_alarm.fd, tstate);
         ok = (errmsg == NULL);
     }
     else {
-        faulthandler_dump_backtrace(fault_alarm.fd, tstate, 1);
+        faulthandler_dump_traceback(fault_alarm.fd, tstate, 1);
         ok = 1;
     }
 
@@ -52,7 +52,7 @@ faulthandler_alarm(int signum)
 }
 
 PyObject*
-faulthandler_dump_backtrace_later(PyObject *self, PyObject *args, PyObject *kwargs)
+faulthandler_dump_traceback_later(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     static char *kwlist[] = {"delay", "repeat", "file", "all_threads", NULL};
     int delay;
@@ -63,7 +63,7 @@ faulthandler_dump_backtrace_later(PyObject *self, PyObject *args, PyObject *kwar
     int fd;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
-        "i|iOi:dump_backtrace_later", kwlist,
+        "i|iOi:dump_traceback_later", kwlist,
         &delay, &repeat, &file, &all_threads))
         return NULL;
     if (delay <= 0) {
@@ -102,7 +102,7 @@ faulthandler_dump_backtrace_later(PyObject *self, PyObject *args, PyObject *kwar
 }
 
 void
-faulthandler_unload_dump_backtrace_later()
+faulthandler_unload_dump_traceback_later()
 {
     alarm(0);
     /* Don't call Py_CLEAR(fault_alarm.file): this function is called too late,
@@ -110,7 +110,7 @@ faulthandler_unload_dump_backtrace_later()
 }
 
 PyObject*
-faulthandler_cancel_dump_backtrace_later_py(PyObject *self)
+faulthandler_cancel_dump_traceback_later_py(PyObject *self)
 {
     alarm(0);
     Py_CLEAR(fault_alarm.file);

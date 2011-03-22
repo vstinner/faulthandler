@@ -187,7 +187,7 @@ dump_frame(int fd, PyFrameObject *frame)
     write(fd, "\n", 1);
 }
 
-/* Write the current Python backtrace into the file 'fd':
+/* Write the current Python traceback into the file 'fd':
 
    Traceback (most recent call first):
      File "xxx", line xxx in <xxx>
@@ -201,7 +201,7 @@ dump_frame(int fd, PyFrameObject *frame)
    This function is signal safe. */
 
 void
-faulthandler_dump_backtrace(int fd, PyThreadState *tstate, int write_header)
+faulthandler_dump_traceback(int fd, PyThreadState *tstate, int write_header)
 {
     PyFrameObject *frame;
     unsigned int depth;
@@ -242,13 +242,13 @@ write_thread_id(int fd, PyThreadState *tstate, int is_current)
     PUTS(fd, ":\n");
 }
 
-/* Dump the backtrace of all threads. Return NULL on success, or an error
+/* Dump the traceback of all threads. Return NULL on success, or an error
    message on error.
 
    This function is signal safe. */
 
 const char*
-faulthandler_dump_backtrace_threads(int fd, PyThreadState *current_thread)
+faulthandler_dump_traceback_threads(int fd, PyThreadState *current_thread)
 {
     PyInterpreterState *interp;
     PyThreadState *tstate;
@@ -263,7 +263,7 @@ faulthandler_dump_backtrace_threads(int fd, PyThreadState *current_thread)
     if (tstate == NULL)
         return "unable to get the thread head state";
 
-    /* Dump the backtrace of each thread */
+    /* Dump the traceback of each thread */
     tstate = PyInterpreterState_ThreadHead(interp);
     nthreads = 0;
     do
@@ -275,7 +275,7 @@ faulthandler_dump_backtrace_threads(int fd, PyThreadState *current_thread)
             break;
         }
         write_thread_id(fd, tstate, tstate == current_thread);
-        faulthandler_dump_backtrace(fd, tstate, 0);
+        faulthandler_dump_traceback(fd, tstate, 0);
         tstate = PyThreadState_Next(tstate);
         nthreads++;
     } while (tstate != NULL);
@@ -319,7 +319,7 @@ faulthandler_get_fileno(PyObject *file)
 }
 
 PyObject*
-faulthandler_dump_backtrace_py(PyObject *self,
+faulthandler_dump_traceback_py(PyObject *self,
                                PyObject *args, PyObject *kwargs)
 {
     static char *kwlist[] = {"file", "all_threads", NULL};
@@ -330,7 +330,7 @@ faulthandler_dump_backtrace_py(PyObject *self,
     int fd;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
-        "|Oi:dump_backtrace", kwlist,
+        "|Oi:dump_traceback", kwlist,
         &file, &all_threads))
         return NULL;
 
@@ -355,14 +355,14 @@ faulthandler_dump_backtrace_py(PyObject *self,
     }
 
     if (all_threads) {
-        errmsg = faulthandler_dump_backtrace_threads(fd, tstate);
+        errmsg = faulthandler_dump_traceback_threads(fd, tstate);
         if (errmsg != NULL) {
             PyErr_SetString(PyExc_RuntimeError, errmsg);
             return NULL;
         }
     }
     else {
-        faulthandler_dump_backtrace(fd, tstate, 1);
+        faulthandler_dump_traceback(fd, tstate, 1);
     }
     Py_RETURN_NONE;
 }

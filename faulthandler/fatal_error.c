@@ -33,7 +33,7 @@ unsigned char faulthandler_nsignals = \
 
 /* Handler of SIGSEGV, SIGFPE, SIGBUS and SIGILL signals.
 
-   Display the current Python backtrace and restore the previous handler. The
+   Display the current Python traceback and restore the previous handler. The
    previous handler will be called when the fault handler exits, because the
    fault will occur again.
 
@@ -82,9 +82,9 @@ faulthandler_fatal_error(int signum)
         return;
 
     if (fatal_error.all_threads)
-        faulthandler_dump_backtrace_threads(fd, tstate);
+        faulthandler_dump_traceback_threads(fd, tstate);
     else
-        faulthandler_dump_backtrace(fd, tstate, 1);
+        faulthandler_dump_traceback(fd, tstate, 1);
 }
 
 PyObject*

@@ -3,7 +3,7 @@ Fault handler
 +++++++++++++
 
 Fault handler for SIGSEGV, SIGFPE, SIGBUS and SIGILL signals: display the
-Python backtrace and restore the previous handler. Allocate an alternate stack
+Python traceback and restore the previous handler. Allocate an alternate stack
 for this handler, if sigaltstack() is available, to be able to allocate memory
 on the stack, even on stack overflow (not available on Windows).
 
@@ -11,18 +11,18 @@ Import the module and call faulthandler.enable() to enable the fault handler.
 
 The fault handler is called on catastrophic cases and so it can only use
 signal-safe functions (eg. it doesn't allocate memory on the heap). That's why
-the backtrace is limited: it only supports ASCII encoding (use the
+the traceback is limited: it only supports ASCII encoding (use the
 backslashreplace error handler for non-ASCII characters) and limits each string
-to 100 characters, doesn't print the source code in the backtrace (only the
+to 100 characters, doesn't print the source code in the traceback (only the
 filename, the function name and the line number), is limited to 100 frames and
 100 threads.
 
-By default, the Python backtrace is written to the standard error stream. Start
+By default, the Python traceback is written to the standard error stream. Start
 your graphical applications in a terminal and run your server in foreground to
-see the backtrace, or pass a file to faulthandler.enable().
+see the traceback, or pass a file to faulthandler.enable().
 
 faulthandler is implemented in C using signal handlers to be able to dump a
-backtrace on a crash or when Python is blocked (eg. deadlock).
+traceback on a crash or when Python is blocked (eg. deadlock).
 
 Website: https://github.com/haypo/faulthandler/wiki/
 
@@ -62,13 +62,13 @@ install python-devel).
 faulthandler module API
 =======================
 
-There are 4 different ways to display the Python backtrace:
+There are 4 different ways to display the Python traceback:
 
  * enable(): on a crash
- * dump_backtrace_later(): after a certain amount of time (useful if you program
+ * dump_traceback_later(): after a certain amount of time (useful if you program
    hangs)
  * register(): by sending a signal (eg. SIGUSR1). It doesn't work on Windows.
- * dump_backtrace(): explicitly
+ * dump_traceback(): explicitly
 
 Fault handler state (disabled by default):
 
@@ -76,28 +76,28 @@ Fault handler state (disabled by default):
  * disable(): disable the fault handler
  * is_enabled(): get the status of the fault handler
 
-Dump the current backtrace:
+Dump the current traceback:
 
- * dump_backtrace(file=sys.stderr, all_threads=False): dump backtrace of the
+ * dump_traceback(file=sys.stderr, all_threads=False): dump traceback of the
    current thread, or of all threads if all_threads is True, into file
- * dump_backtrace_later(delay, repeat=False, file=sys.stderr, all_threads=False):
-   dump the backtrace of the current thread, or of all threads if all_threads
+ * dump_traceback_later(delay, repeat=False, file=sys.stderr, all_threads=False):
+   dump the traceback of the current thread, or of all threads if all_threads
    is True, in delay seconds, or each delay seconds if repeat is True. If the
    function is called twice, the new call replaces previous parameters.
- * cancel_dump_backtrace_later(): cancel the previous call to
-   dump_backtrace_later()
+ * cancel_dump_traceback_later(): cancel the previous call to
+   dump_traceback_later()
 
-dump_backtrace_later() is implemented using the SIGALRM signal and the alarm()
+dump_traceback_later() is implemented using the SIGALRM signal and the alarm()
 function: if the signal handler is called during a system call, the system call
 is interrupted (return EINTR). It it not available on Windows.
 
-enable() and dump_backtrace_later() keep an internal reference to the output
-file. Use disable() and cancel_dump_backtrace_later() to clear this reference.
+enable() and dump_traceback_later() keep an internal reference to the output
+file. Use disable() and cancel_dump_traceback_later() to clear this reference.
 
-Dump the backtrace on an user signal:
+Dump the traceback on an user signal:
 
  * register(signum, file=sys.stderr, all_threads=False): register an handler
-   for the signal 'signum': dump the backtrace of the current thread, or of all
+   for the signal 'signum': dump the traceback of the current thread, or of all
    threads if all_threads is True, into file"
  * unregister(signum): unregister the handler of the signal 'signum' registered
    by register()
@@ -126,14 +126,14 @@ Version 1.5 (under development)
  * Conform to the PEP 8:
 
    * Rename isenabled() to is_enabled()
-   * Rename dumpbacktrace() to dump_backtrace()
-   * Rename dumpbacktrace_later() to dump_backtrace_later()
-   * Rename cancel_dumpbacktrace_later() to cancel_dump_backtrace_later()
+   * Rename dumpbacktrace() to dump_traceback()
+   * Rename dumpbacktrace_later() to dump_traceback_later()
+   * Rename cancel_dumpbacktrace_later() to cancel_dump_traceback_later()
 
  * Limit strings to 100 characters
- * dump_backtrace_later() signal handler doesn't clear its reference to the
+ * dump_traceback_later() signal handler doesn't clear its reference to the
    file because Py_CLEAR() is not signal safe: you have to call explicitly
-   cancel_dump_backtrace_later()
+   cancel_dump_traceback_later()
 
 Version 1.4 (2011-02-14)
 ------------------------
@@ -191,9 +191,9 @@ Similar projects
 
 Python debuggers:
 
- * tipper: write the backtrace of the current thread into a file on SIGUSR1
+ * tipper: write the traceback of the current thread into a file on SIGUSR1
    signal: http://pypi.python.org/pypi/tipper/
- * crier: write the backtrace of the current thread into a file
+ * crier: write the traceback of the current thread into a file
    (eg. /tmp/dump-<pid>) if a "request" file is created (eg. /tmp/crier-<pid>).
    Implemented using a thread. https://gist.github.com/737056
  * Python WAD (Wrapped Application Debugger), not update since 2001:
@@ -202,7 +202,7 @@ Python debuggers:
 Application fault handlers:
 
  * The GNU libc has a fault handler in debug/segfault.c
- * XEmacs has a fault handler displaying the Lisp backtrace
+ * XEmacs has a fault handler displaying the Lisp traceback
  * RPy has a fault handler
 
 System-wide fault handlers:

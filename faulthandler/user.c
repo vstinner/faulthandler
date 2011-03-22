@@ -15,7 +15,7 @@ static struct {
 
 /* Handler of user signals (e.g. SIGUSR1).
 
-   Dump the backtrace of the current thread, or of all threads if
+   Dump the traceback of the current thread, or of all threads if
    fault_alarm.all_threads is true.
 
    This function is signal safe and should only call signal safe functions. */
@@ -47,9 +47,9 @@ faulthandler_user(int signum)
     }
 
     if (user->all_threads)
-        faulthandler_dump_backtrace_threads(user->fd, tstate);
+        faulthandler_dump_traceback_threads(user->fd, tstate);
     else
-        faulthandler_dump_backtrace(user->fd, tstate, 1);
+        faulthandler_dump_traceback(user->fd, tstate, 1);
 }
 
 PyObject*

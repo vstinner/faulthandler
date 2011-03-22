@@ -40,7 +40,7 @@ def normalize_threads(trace):
         'Current thread ...',
         trace)
 
-def expected_backtrace(line1, line2, all_threads):
+def expected_traceback(line1, line2, all_threads):
     if all_threads:
         expected = ['Current thread ...:']
     else:
@@ -87,7 +87,7 @@ class FaultHandlerTests(unittest.TestCase):
                                filename=None, all_threads=False):
         """
         Check that the fault handler for fatal errors is enabled and check the
-        backtrace from the child process output.
+        traceback from the child process output.
 
         Raise an error if the output doesn't match the expected format.
         """
@@ -194,9 +194,9 @@ class FaultHandlerTests(unittest.TestCase):
         faulthandler.disable()
         self.assertFalse(faulthandler.is_enabled())
 
-    def check_dump_backtrace(self, filename):
+    def check_dump_traceback(self, filename):
         """
-        Call explicitly dump_backtrace() function and check its output.
+        Call explicitly dump_traceback() function and check its output.
         Raise an error if the output doesn't match the expected format.
         """
         code = (
@@ -206,9 +206,9 @@ class FaultHandlerTests(unittest.TestCase):
             'def funcB():',
             '    if %r:' % (bool(filename),),
             '        with open(%r, "wb") as fp:' % (filename,),
-            '            faulthandler.dump_backtrace(fp)',
+            '            faulthandler.dump_traceback(fp)',
             '    else:',
-            '        faulthandler.dump_backtrace()',
+            '        faulthandler.dump_traceback()',
             '',
             'def funcA():',
             '    funcB()',
@@ -229,14 +229,14 @@ class FaultHandlerTests(unittest.TestCase):
         trace = trace.splitlines()
         self.assertEqual(trace, expected)
 
-    def test_dump_backtrace(self):
-        self.check_dump_backtrace(None)
+    def test_dump_traceback(self):
+        self.check_dump_traceback(None)
         with temporary_filename() as filename:
-            self.check_dump_backtrace(filename)
+            self.check_dump_traceback(filename)
 
-    def check_dump_backtrace_threads(self, filename):
+    def check_dump_traceback_threads(self, filename):
         """
-        Call explicitly dump_backtrace(all_threads=True) and check the output.
+        Call explicitly dump_traceback(all_threads=True) and check the output.
         Raise an error if the output doesn't match the expected format.
         """
         output = self.get_output((
@@ -248,9 +248,9 @@ class FaultHandlerTests(unittest.TestCase):
             'def dump():',
             '    if %r:' % (bool(filename),),
             '        with open(%r, "wb") as fp:' % (filename,),
-            '            faulthandler.dump_backtrace(fp, all_threads=True)',
+            '            faulthandler.dump_traceback(fp, all_threads=True)',
             '    else:',
-            '        faulthandler.dump_backtrace(all_threads=True)',
+            '        faulthandler.dump_traceback(all_threads=True)',
             '',
             'class Waiter(Thread):',
             '    def __init__(self):',
@@ -287,16 +287,16 @@ class FaultHandlerTests(unittest.TestCase):
         self.assertTrue(re.match(regex, lines),
                         "<<<%s>>> doesn't match" % lines)
 
-    def test_dump_backtrace_threads(self):
-        self.check_dump_backtrace_threads(None)
+    def test_dump_traceback_threads(self):
+        self.check_dump_traceback_threads(None)
         with temporary_filename() as filename:
-            self.check_dump_backtrace_threads(filename)
+            self.check_dump_traceback_threads(filename)
 
-    def _check_dump_backtrace_later(self, repeat, cancel,
+    def _check_dump_traceback_later(self, repeat, cancel,
                                    filename, all_threads):
         """
-        Call dump_backtrace_later() two times, or three times if repeat is True.
-        Check the output: the backtrace may be written 1, 2 or 3 times
+        Call dump_traceback_later() two times, or three times if repeat is True.
+        Check the output: the traceback may be written 1, 2 or 3 times
         depending on repeat and cancel options.
 
         Raise an error if the output doesn't match the expect format.
@@ -322,13 +322,13 @@ class FaultHandlerTests(unittest.TestCase):
             '        else:',
             '            assert diff >= 2.0',
             '        if repeat and cancel and 1 <= x:',
-            '            faulthandler.cancel_dump_backtrace_later()',
+            '            faulthandler.cancel_dump_traceback_later()',
             '            dump = False',
             '            cancel = False',
             '        if not repeat:',
             '            dump = False',
             '    if repeat:',
-            '        faulthandler.cancel_dump_backtrace_later()',
+            '        faulthandler.cancel_dump_traceback_later()',
             '',
             'repeat = %s' % repeat,
             'cancel = %s' % cancel,
@@ -336,7 +336,7 @@ class FaultHandlerTests(unittest.TestCase):
             '    file = open(%r, "wb")' % filename,
             'else:',
             '    file = None',
-            'faulthandler.dump_backtrace_later(1, ',
+            'faulthandler.dump_traceback_later(1, ',
             '    repeat=repeat, all_threads=%s, file=file)' % all_threads,
             'func(repeat, cancel)',
             'if file is not None:',
@@ -347,7 +347,7 @@ class FaultHandlerTests(unittest.TestCase):
             trace = normalize_threads(trace)
         trace = trace.splitlines()
 
-        expected = expected_backtrace(12, 37, all_threads)
+        expected = expected_traceback(12, 37, all_threads)
         if repeat:
             if cancel:
                 expected *= 2
@@ -357,37 +357,37 @@ class FaultHandlerTests(unittest.TestCase):
                          "%r != %r: repeat=%s, cancel=%s, use_filename=%s, all_threads=%s"
                          % (trace, expected, repeat, cancel, bool(filename), all_threads))
 
-    @skipIf(not hasattr(faulthandler, 'dump_backtrace_later'),
-            'need faulthandler.dump_backtrace_later()')
-    def check_dump_backtrace_later(self, repeat=False, cancel=False,
+    @skipIf(not hasattr(faulthandler, 'dump_traceback_later'),
+            'need faulthandler.dump_traceback_later()')
+    def check_dump_traceback_later(self, repeat=False, cancel=False,
                                   all_threads=False, file=False):
         if file:
             with temporary_filename() as filename:
-                self._check_dump_backtrace_later(repeat, cancel, filename, all_threads)
+                self._check_dump_traceback_later(repeat, cancel, filename, all_threads)
         else:
-            self._check_dump_backtrace_later(repeat, cancel, None, all_threads)
+            self._check_dump_traceback_later(repeat, cancel, None, all_threads)
 
-    def test_dump_backtrace_later(self):
-        self.check_dump_backtrace_later()
+    def test_dump_traceback_later(self):
+        self.check_dump_traceback_later()
 
-    def test_dump_backtrace_later_repeat(self):
-        self.check_dump_backtrace_later(repeat=True)
+    def test_dump_traceback_later_repeat(self):
+        self.check_dump_traceback_later(repeat=True)
 
-    def test_dump_backtrace_later_repeat_cancel(self):
-        self.check_dump_backtrace_later(repeat=True, cancel=True)
+    def test_dump_traceback_later_repeat_cancel(self):
+        self.check_dump_traceback_later(repeat=True, cancel=True)
 
-    def test_dump_backtrace_later_threads(self):
-        self.check_dump_backtrace_later(all_threads=True)
+    def test_dump_traceback_later_threads(self):
+        self.check_dump_traceback_later(all_threads=True)
 
-    def test_dump_backtrace_later_file(self):
-        self.check_dump_backtrace_later(file=True)
+    def test_dump_traceback_later_file(self):
+        self.check_dump_traceback_later(file=True)
 
     @skipIf(not hasattr(signal, "SIGUSR1"),
             "need signal.SIGUSR1")
     def check_register(self, filename=False, all_threads=False):
         """
-        Register a handler display the backtrace on a user signal. Raise the
-        signal and check the written backtrace.
+        Register a handler display the traceback on a user signal. Raise the
+        signal and check the written traceback.
 
         Raise an error if the output doesn't match the expected format.
         """
@@ -413,7 +413,7 @@ class FaultHandlerTests(unittest.TestCase):
         if all_threads:
             trace = normalize_threads(trace)
         trace = trace.splitlines()
-        expected = expected_backtrace(6, 14, all_threads)
+        expected = expected_traceback(6, 14, all_threads)
         self.assertEqual(trace, expected,
                          "%r != %r: use_filename=%s, all_threads=%s"
                          % (trace, expected, bool(filename), all_threads))
