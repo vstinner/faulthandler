@@ -66,7 +66,7 @@ PyObject* faulthandler_dumpbacktrace_later(PyObject *self,
     PyObject *args,
     PyObject *kwargs);
 PyObject* faulthandler_cancel_dumpbacktrace_later_py(PyObject *self);
-void faulthandler_cancel_dumpbacktrace_later(void);
+void faulthandler_unload_dumpbacktrace_later(void);
 #endif
 
 PyObject* faulthandler_sigsegv(PyObject *self, PyObject *args);

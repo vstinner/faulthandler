@@ -102,16 +102,18 @@ faulthandler_dumpbacktrace_later(PyObject *self, PyObject *args, PyObject *kwarg
 }
 
 void
-faulthandler_cancel_dumpbacktrace_later()
+faulthandler_unload_dumpbacktrace_later()
 {
     alarm(0);
-    Py_CLEAR(fault_alarm.file);
+    /* Don't call Py_CLEAR(fault_alarm.file): this function is called too late,
+       by Py_AtExit(). Destroy a Python object here raise strange errors. */
 }
 
 PyObject*
 faulthandler_cancel_dumpbacktrace_later_py(PyObject *self)
 {
-    faulthandler_cancel_dumpbacktrace_later();
+    alarm(0);
+    Py_CLEAR(fault_alarm.file);
     Py_RETURN_NONE;
 }
 #endif

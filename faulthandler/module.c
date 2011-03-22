@@ -135,7 +135,7 @@ static void
 faulthandler_unload(void)
 {
 #ifdef FAULTHANDLER_LATER
-    faulthandler_cancel_dumpbacktrace_later();
+    faulthandler_unload_dumpbacktrace_later();
 #endif
     faulthandler_unload_user();
     faulthandler_unload_fatal_error();

@@ -210,8 +210,9 @@ faulthandler_unload_user()
 
     for (i=0; i < user_signals.nsignal; i++) {
         faulthandler_unregister(&user_signals.signals[i]);
-        /* don't release user->file: faulthandler_unload_user()
-           is called too late */
+        /* Don't call Py_DECREF(user->file): this function is called too late,
+           by Py_AtExit(). Destroy a Python object here raise strange
+           errors. */
     }
     user_signals.nsignal = 0;
     free(user_signals.signals);
