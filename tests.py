@@ -63,6 +63,13 @@ def temporary_filename():
 
 class FaultHandlerTests(unittest.TestCase):
     def get_output(self, code, filename=None):
+        """
+        Run the specified code in Python (in a new child process) and get the
+        output: read from standard error or from a file (if filename is set).
+
+        Strip the reference count from the standard error for Python debug
+        build.
+        """
         code = '\n'.join(code)
         process = subprocess.Popen(
             [sys.executable, '-c', code],
@@ -76,8 +83,14 @@ class FaultHandlerTests(unittest.TestCase):
                 output = re.sub(r"\[\d+ refs\]\r?\n?$", "", output)
         return output
 
-    def check_enabled(self, code, line_number, name,
-                      filename=None, all_threads=False):
+    def check_fatal_error(self, code, line_number, name,
+                               filename=None, all_threads=False):
+        """
+        Check that the fault handler for fatal errors is enabled and check the
+        backtrace from the child process output.
+
+        Raise an error if the output doesn't match the expected format.
+        """
         expected = [
             'Fatal Python error: ' + name,
             '']
@@ -93,7 +106,7 @@ class FaultHandlerTests(unittest.TestCase):
         self.assertEqual(lines, expected)
 
     def test_sigsegv(self):
-        self.check_enabled(
+        self.check_fatal_error(
             ("import faulthandler; faulthandler.enable()",
              "faulthandler.sigsegv()"),
             2,
@@ -102,7 +115,7 @@ class FaultHandlerTests(unittest.TestCase):
     @skipIf(sys.platform == 'win32',
             "SIGFPE cannot be caught on Windows")
     def test_sigfpe(self):
-        self.check_enabled(
+        self.check_fatal_error(
             ("import faulthandler; faulthandler.enable(); "
              "faulthandler.sigfpe()",),
             1,
@@ -111,7 +124,7 @@ class FaultHandlerTests(unittest.TestCase):
     @skipIf(not hasattr(faulthandler, 'sigbus'),
             "need faulthandler.sigbus()")
     def test_sigbus(self):
-        self.check_enabled(
+        self.check_fatal_error(
             ("import faulthandler; faulthandler.enable()",
              "faulthandler.sigbus()"),
             2,
@@ -120,14 +133,14 @@ class FaultHandlerTests(unittest.TestCase):
     @skipIf(not hasattr(faulthandler, 'sigill'),
             "need faulthandler.sigill()")
     def test_sigill(self):
-        self.check_enabled(
+        self.check_fatal_error(
             ("import faulthandler; faulthandler.enable()",
              "faulthandler.sigill()"),
             2,
             'Illegal instruction')
 
     def test_gil_released(self):
-        self.check_enabled(
+        self.check_fatal_error(
             ("import faulthandler; faulthandler.enable()",
              "faulthandler.sigsegv(True)"),
             2,
@@ -135,7 +148,7 @@ class FaultHandlerTests(unittest.TestCase):
 
     def test_enable_file(self):
         with temporary_filename() as filename:
-            self.check_enabled(
+            self.check_fatal_error(
                 ("import faulthandler",
                  "output = open(%r, 'wb')" % filename,
                  "faulthandler.enable(output)",
@@ -145,7 +158,7 @@ class FaultHandlerTests(unittest.TestCase):
                 filename=filename)
 
     def test_enable_threads(self):
-        self.check_enabled(
+        self.check_fatal_error(
             ("import faulthandler",
              "faulthandler.enable(all_threads=True)",
              "faulthandler.sigsegv(True)"),
@@ -153,19 +166,22 @@ class FaultHandlerTests(unittest.TestCase):
             'Segmentation fault',
             all_threads=True)
 
-    def check_disabled(self, *code):
+    def check_fatal_error_disabled(self, *code):
+        """
+        Ensure that the faulthandle is disabled when a fatal error occurs.
+        """
         not_expected = 'Fatal Python error'
         stderr = self.get_output(code)
         self.assertTrue(not_expected not in stderr,
                      "%r is present in %r" % (not_expected, stderr))
 
     def test_disabled(self):
-        self.check_disabled(
+        self.check_fatal_error_disabled(
             "import faulthandler",
             "faulthandler.sigsegv()")
 
     def test_enable_disable(self):
-        self.check_disabled(
+        self.check_fatal_error_disabled(
             "import faulthandler",
             "faulthandler.enable()",
             "faulthandler.disable()",
@@ -179,6 +195,10 @@ class FaultHandlerTests(unittest.TestCase):
         self.assertFalse(faulthandler.isenabled())
 
     def check_dumpbacktrace(self, filename):
+        """
+        Call explicitly dumpbacktrace() function and check its output.
+        Raise an error if the output doesn't match the expected format.
+        """
         code = (
             'from __future__ import with_statement',
             'import faulthandler',
@@ -215,6 +235,10 @@ class FaultHandlerTests(unittest.TestCase):
             self.check_dumpbacktrace(filename)
 
     def check_dumpbacktrace_threads(self, filename):
+        """
+        Call explicitly dumpbacktrace(all_threads=True) and check the output.
+        Raise an error if the output doesn't match the expected format.
+        """
         output = self.get_output((
             'from __future__ import with_statement',
             'import faulthandler',
@@ -270,6 +294,13 @@ class FaultHandlerTests(unittest.TestCase):
 
     def _check_dumpbacktrace_later(self, repeat, cancel,
                                    filename, all_threads):
+        """
+        Call dumpbacktrace_later() two times, or three times if repeat is True.
+        Check the output: the backtrace may be written 1, 2 or 3 times
+        depending on repeat and cancel options.
+
+        Raise an error if the output doesn't match the expect format.
+        """
         code = (
             'import faulthandler',
             'import time',
@@ -296,7 +327,7 @@ class FaultHandlerTests(unittest.TestCase):
             '            cancel = False',
             '        if not repeat:',
             '            dump = False',
-            '    if repeat and (not cancel):',
+            '    if repeat:',
             '        faulthandler.cancel_dumpbacktrace_later()',
             '',
             'repeat = %s' % repeat,
@@ -354,6 +385,12 @@ class FaultHandlerTests(unittest.TestCase):
     @skipIf(not hasattr(signal, "SIGUSR1"),
             "need signal.SIGUSR1")
     def check_register(self, filename=False, all_threads=False):
+        """
+        Register a handler display the backtrace on a user signal. Raise the
+        signal and check the written backtrace.
+
+        Raise an error if the output doesn't match the expected format.
+        """
         code = (
             'import faulthandler',
             'import os',
