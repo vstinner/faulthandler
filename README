@@ -120,8 +120,8 @@ the major version, and "version & 255" to get the minor version.
 Changelog
 =========
 
-Version 1.5 (under development)
--------------------------------
+Version 1.5 (2011-03-24)
+------------------------
 
  * Conform to the PEP 8:
 
@@ -132,7 +132,7 @@ Version 1.5 (under development)
 
  * Limit strings to 100 characters
  * dump_traceback_later() signal handler doesn't clear its reference to the
-   file because Py_CLEAR() is not signal safe: you have to call explicitly
+   file, because Py_CLEAR() is not signal safe: you have to call explicitly
    cancel_dump_traceback_later()
 
 Version 1.4 (2011-02-14)
