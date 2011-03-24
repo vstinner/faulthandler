@@ -27,7 +27,7 @@ from __future__ import with_statement
 from distutils.core import setup, Extension
 from os.path import join as path_join
 
-VERSION = "1.5"
+VERSION = "1.6"
 
 FILENAMES = (
     'traceback.c',

@@ -7,7 +7,7 @@
 
 #include "faulthandler.h"
 
-#define VERSION 0x105
+#define VERSION 0x106
 
 /* Forward */
 static void faulthandler_unload(void);
