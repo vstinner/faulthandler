@@ -65,8 +65,8 @@ faulthandler module API
 There are 4 different ways to display the Python traceback:
 
  * enable(): on a crash
- * dump_traceback_later(): after a certain amount of time (useful if you program
-   hangs)
+ * dump_traceback_later(): after a certain amount of time (useful if your
+   program hangs)
  * register(): by sending a signal (eg. SIGUSR1). It doesn't work on Windows.
  * dump_traceback(): explicitly
 
