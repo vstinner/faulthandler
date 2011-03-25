@@ -1,6 +1,6 @@
 from __future__ import with_statement
 from contextlib import contextmanager
-import faulthandler; faulthandler.disable()
+import faulthandler
 import os
 import re
 import signal
@@ -34,15 +34,9 @@ def read_file(filename):
         output = fp.read()
     return decode_output(output)
 
-def normalize_threads(trace):
-    return re.sub(
-        r'Current thread 0x[0-9a-f]+',
-        'Current thread ...',
-        trace)
-
 def expected_traceback(line1, line2, all_threads):
     if all_threads:
-        expected = ['Current thread ...:']
+        expected = ['Current thread XXX:']
     else:
         expected = ['Traceback (most recent call first):']
     expected.extend((
@@ -62,10 +56,14 @@ def temporary_filename():
            pass
 
 class FaultHandlerTests(unittest.TestCase):
+    def setUp(self):
+        faulthandler.disable()
+
     def get_output(self, code, filename=None):
         """
         Run the specified code in Python (in a new child process) and get the
         output: read from standard error or from a file (if filename is set).
+        Return the output as a list.
 
         Strip the reference count from the standard error for Python debug
         build.
@@ -81,7 +79,10 @@ class FaultHandlerTests(unittest.TestCase):
             output = decode_output(stderr)
             if Py_REF_DEBUG:
                 output = re.sub(r"\[\d+ refs\]\r?\n?$", "", output)
-        return output
+        output = re.sub('Current thread 0x[0-9a-f]+',
+                        'Current thread XXX',
+                        output)
+        return output.splitlines()
 
     def check_fatal_error(self, code, line_number, name,
                                filename=None, all_threads=False):
@@ -95,14 +96,11 @@ class FaultHandlerTests(unittest.TestCase):
             'Fatal Python error: ' + name,
             '']
         if all_threads:
-            expected.append('Current thread ...:')
+            expected.append('Current thread XXX:')
         else:
             expected.append('Traceback (most recent call first):')
         expected.append('  File "<string>", line %s in <module>' % line_number)
-        output = self.get_output(code, filename)
-        if all_threads:
-            output = normalize_threads(output)
-        lines = output.splitlines()
+        lines = self.get_output(code, filename)
         self.assertEqual(lines, expected)
 
     def test_sigsegv(self):
@@ -172,6 +170,7 @@ class FaultHandlerTests(unittest.TestCase):
         """
         not_expected = 'Fatal Python error'
         stderr = self.get_output(code)
+        stder = '\n'.join(stderr)
         self.assertTrue(not_expected not in stderr,
                      "%r is present in %r" % (not_expected, stderr))
 
@@ -226,7 +225,6 @@ class FaultHandlerTests(unittest.TestCase):
             '  File "<string>", line 14 in <module>'
         ]
         trace = self.get_output(code, filename)
-        trace = trace.splitlines()
         self.assertEqual(trace, expected)
 
     def test_dump_traceback(self):
@@ -268,24 +266,23 @@ class FaultHandlerTests(unittest.TestCase):
             'waiter.stop = True',
             'waiter.join()',
         ), filename)
-        # Normalize newlines for Windows
-        lines = '\n'.join(output.splitlines())
+        output = '\n'.join(output)
         if filename:
             lineno = 9
         else:
             lineno = 11
-        regex = '\n'.join((
-            'Thread 0x[0-9a-f]+:',
-            '  File "<string>", line 20 in run',
-            '  File ".*threading.py", line [0-9]+ in __?bootstrap_inner',
-            '  File ".*threading.py", line [0-9]+ in __?bootstrap',
-            '',
-            'Current thread 0x[0-9a-f]+:',
-            '  File "<string>", line %s in dump' % lineno,
-            '  File "<string>", line 25 in <module>',
-        ))
-        self.assertTrue(re.match(regex, lines),
-                        "<<<%s>>> doesn't match" % lines)
+        regex = (
+            'Thread 0x[0-9a-f]+:\n'
+            '  File "<string>", line 21 in run\n'
+            '  File ".*threading.py", line [0-9]+ in __?bootstrap_inner\n'
+            '  File ".*threading.py", line [0-9]+ in __?bootstrap\n'
+            '\n'
+            'Current thread XXX:\n'
+            '  File "<string>", line %s in dump\n'
+            '  File "<string>", line 26 in <module>'
+        ) % lineno
+        self.assertTrue(re.match(regex, output),
+                        "<<<%s>>> doesn't match" % output)
 
     def test_dump_traceback_threads(self):
         self.check_dump_traceback_threads(None)
@@ -343,9 +340,6 @@ class FaultHandlerTests(unittest.TestCase):
             '    file.close()',
         )
         trace = self.get_output(code, filename)
-        if all_threads:
-            trace = normalize_threads(trace)
-        trace = trace.splitlines()
 
         expected = expected_traceback(12, 37, all_threads)
         if repeat:
@@ -410,9 +404,6 @@ class FaultHandlerTests(unittest.TestCase):
             '    file.close()',
         )
         trace = self.get_output(code, filename)
-        if all_threads:
-            trace = normalize_threads(trace)
-        trace = trace.splitlines()
         expected = expected_traceback(6, 14, all_threads)
         self.assertEqual(trace, expected,
                          "%r != %r: use_filename=%s, all_threads=%s"
