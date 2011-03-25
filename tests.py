@@ -428,6 +428,34 @@ class FaultHandlerTests(unittest.TestCase):
     def test_register_threads(self):
         self.check_register(all_threads=True)
 
+    def test_refcount(self):
+        """
+        Test written to check for reference leaks.
+        """
+        faulthandler.enable()
+        faulthandler.enable()
+        faulthandler.disable()
+        faulthandler.disable()
+        faulthandler.enable()
+        faulthandler.disable()
+
+        if hasattr(signal, "SIGUSR1"):
+            faulthandler.register(signal.SIGUSR1)
+            faulthandler.register(signal.SIGUSR1)
+            faulthandler.register(signal.SIGUSR2)
+            faulthandler.register(signal.SIGUSR2)
+            faulthandler.unregister(signal.SIGUSR1)
+            faulthandler.unregister(signal.SIGUSR2)
+
+        if hasattr(faulthandler, 'dump_traceback_later'):
+            faulthandler.dump_traceback_later(3600)
+            faulthandler.dump_traceback_later(3600)
+            faulthandler.cancel_dump_traceback_later()
+
+        with tempfile.NamedTemporaryFile() as file:
+            faulthandler.dump_traceback(file=file)
+            faulthandler.dump_traceback(file=file, all_threads=True)
+
 if __name__ == "__main__":
     unittest.main()
 
