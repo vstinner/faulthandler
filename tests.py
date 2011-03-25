@@ -254,16 +254,17 @@ class FaultHandlerTests(unittest.TestCase):
             '    def __init__(self):',
             '        Thread.__init__(self)',
             '        self.running = Event()',
+            '        self.stop = Event()',
             '',
             '    def run(self):',
             '        self.running.set()',
-            '        time.sleep(5.0)',
+            '        self.stop.wait()',
             '',
             'waiter = Waiter()',
             'waiter.start()',
             'waiter.running.wait()',
             'dump()',
-            'waiter.stop = True',
+            'waiter.stop.set()',
             'waiter.join()',
         ), filename)
         output = '\n'.join(output)
@@ -273,6 +274,8 @@ class FaultHandlerTests(unittest.TestCase):
             lineno = 11
         regex = (
             'Thread 0x[0-9a-f]+:\n'
+            '(?:  File ".*threading.py", line [0-9]+ in wait\n)?'
+            '  File ".*threading.py", line [0-9]+ in wait\n'
             '  File "<string>", line 21 in run\n'
             '  File ".*threading.py", line [0-9]+ in __?bootstrap_inner\n'
             '  File ".*threading.py", line [0-9]+ in __?bootstrap\n'
@@ -282,7 +285,7 @@ class FaultHandlerTests(unittest.TestCase):
             '  File "<string>", line 26 in <module>'
         ) % lineno
         self.assertTrue(re.match(regex, output),
-                        "<<<%s>>> doesn't match" % output)
+                        "<<<%s>>> doesn't match <<<%s>>>" % (output, regex))
 
     def test_dump_traceback_threads(self):
         self.check_dump_traceback_threads(None)
