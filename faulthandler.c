@@ -978,6 +978,21 @@ faulthandler_sigill(PyObject *self, PyObject *args)
 }
 #endif
 
+#if PY_MAJOR_VERSION >= 3
+static int
+faulthandler_traverse(PyObject *module, visitproc visit, void *arg)
+{
+    unsigned int index;
+#ifdef FAULTHANDLER_LATER
+    Py_VISIT(fault_alarm.file);
+#endif
+    for (index=0; index < user_signals.nsignal; index++)
+        Py_VISIT(user_signals.signals[index].file);
+    Py_VISIT(fatal_error.file);
+    return 0;
+}
+#endif
+
 PyDoc_STRVAR(module_doc,
 "faulthandler module.");
 
@@ -1042,7 +1057,7 @@ static struct PyModuleDef module_def = {
     0, /* non negative size to be able to unload the module */
     module_methods,
     NULL,
-    NULL,
+    faulthandler_traverse,
     NULL,
     NULL
 };
