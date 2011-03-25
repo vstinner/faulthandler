@@ -479,6 +479,9 @@ faulthandler_fatal_error(int signum)
     fault_handler_t *handler = NULL;
     PyThreadState *tstate;
 
+    if (!fatal_error.enabled)
+        return;
+
     /* restore the previous handler */
     for (i=0; i < faulthandler_nsignals; i++) {
         handler = &faulthandler_handlers[i];
@@ -590,9 +593,8 @@ faulthandler_disable(void)
     unsigned int i;
     fault_handler_t *handler;
 
-    Py_CLEAR(fatal_error.file);
-
     if (fatal_error.enabled) {
+        fatal_error.enabled = 0;
         for (i=0; i < faulthandler_nsignals; i++) {
             handler = &faulthandler_handlers[i];
             if (!handler->enabled)
@@ -605,7 +607,8 @@ faulthandler_disable(void)
             handler->enabled = 0;
         }
     }
-    fatal_error.enabled = 0;
+
+    Py_CLEAR(fatal_error.file);
 }
 
 static PyObject*
