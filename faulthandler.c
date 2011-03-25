@@ -1034,16 +1034,16 @@ static PyMethodDef module_methods[] = {
      PyDoc_STR("unregister(signum): unregister the handler of the signal "
                 "'signum' registered by register()")},
 
-    {"sigsegv", faulthandler_sigsegv, METH_VARARGS,
+    {"_sigsegv", faulthandler_sigsegv, METH_VARARGS,
      PyDoc_STR("sigsegv(release_gil=False): raise a SIGSEGV signal")},
-    {"sigfpe", (PyCFunction)faulthandler_sigfpe, METH_NOARGS,
+    {"_sigfpe", (PyCFunction)faulthandler_sigfpe, METH_NOARGS,
      PyDoc_STR("sigfpe(): raise a SIGFPE signal")},
 #ifdef SIGBUS
-    {"sigbus", (PyCFunction)faulthandler_sigbus, METH_NOARGS,
+    {"_sigbus", (PyCFunction)faulthandler_sigbus, METH_NOARGS,
      PyDoc_STR("sigbus(): raise a SIGBUS signal")},
 #endif
 #ifdef SIGILL
-    {"sigill", (PyCFunction)faulthandler_sigill, METH_NOARGS,
+    {"_sigill", (PyCFunction)faulthandler_sigill, METH_NOARGS,
      PyDoc_STR("sigill(): raise a SIGILL signal")},
 #endif
     {NULL, NULL} /* terminator */

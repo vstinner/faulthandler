@@ -35,7 +35,7 @@ Example of a segmentation fault on Linux: ::
     $ python
     >>> import faulthandler
     >>> faulthandler.enable()
-    >>> faulthandler.sigsegv()
+    >>> faulthandler._sigsegv()
     Fatal Python error: Segmentation fault
 
     Traceback (most recent call first):
@@ -104,11 +104,11 @@ Dump the traceback on an user signal:
 
 Functions to test the fault handler:
 
- * sigbus(): raise a SIGBUS signal (Bus error)
- * sigfpe(): raise a SIGFPE signal (Floating point exception), do a division by
+ * _sigbus(): raise a SIGBUS signal (Bus error)
+ * _sigfpe(): raise a SIGFPE signal (Floating point exception), do a division by
    zero
- * sigill(): raise a SIGILL signal (Illegal instruction)
- * sigsegv(): raise a SIGSEGV signal (Segmentation fault), read memory from
+ * _sigill(): raise a SIGILL signal (Illegal instruction)
+ * _sigsegv(): raise a SIGSEGV signal (Segmentation fault), read memory from
    NULL (address 0)
 
 sigbus() and sigill() are not available on all operation systems.
@@ -127,6 +127,10 @@ Version 1.6 (under development)
  * Fix a reference leak in dump_traceback_later()
  * Fix register() if it called twice with the same signal
  * Implement m_traverse for Python 3 to help the garbage collector
+ * Rename sigsegv() to _sigsegv()
+ * Rename sigfpe() to _sigfpe()
+ * Rename sigbus() to _sigbus()
+ * Rename sigill() to _sigill()
 
 Version 1.5 (2011-03-24)
 ------------------------

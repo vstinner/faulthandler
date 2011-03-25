@@ -106,7 +106,7 @@ class FaultHandlerTests(unittest.TestCase):
     def test_sigsegv(self):
         self.check_fatal_error(
             ("import faulthandler; faulthandler.enable()",
-             "faulthandler.sigsegv()"),
+             "faulthandler._sigsegv()"),
             2,
             'Segmentation fault')
 
@@ -115,32 +115,32 @@ class FaultHandlerTests(unittest.TestCase):
     def test_sigfpe(self):
         self.check_fatal_error(
             ("import faulthandler; faulthandler.enable(); "
-             "faulthandler.sigfpe()",),
+             "faulthandler._sigfpe()",),
             1,
             'Floating point exception')
 
-    @skipIf(not hasattr(faulthandler, 'sigbus'),
-            "need faulthandler.sigbus()")
+    @skipIf(not hasattr(faulthandler, '_sigbus'),
+            "need faulthandler._sigbus()")
     def test_sigbus(self):
         self.check_fatal_error(
             ("import faulthandler; faulthandler.enable()",
-             "faulthandler.sigbus()"),
+             "faulthandler._sigbus()"),
             2,
             'Bus error')
 
-    @skipIf(not hasattr(faulthandler, 'sigill'),
-            "need faulthandler.sigill()")
+    @skipIf(not hasattr(faulthandler, '_sigill'),
+            "need faulthandler._sigill()")
     def test_sigill(self):
         self.check_fatal_error(
             ("import faulthandler; faulthandler.enable()",
-             "faulthandler.sigill()"),
+             "faulthandler._sigill()"),
             2,
             'Illegal instruction')
 
     def test_gil_released(self):
         self.check_fatal_error(
             ("import faulthandler; faulthandler.enable()",
-             "faulthandler.sigsegv(True)"),
+             "faulthandler._sigsegv(True)"),
             2,
             'Segmentation fault')
 
@@ -150,7 +150,7 @@ class FaultHandlerTests(unittest.TestCase):
                 ("import faulthandler",
                  "output = open(%r, 'wb')" % filename,
                  "faulthandler.enable(output)",
-                 "faulthandler.sigsegv(True)"),
+                 "faulthandler._sigsegv(True)"),
                 4,
                 'Segmentation fault',
                 filename=filename)
@@ -159,7 +159,7 @@ class FaultHandlerTests(unittest.TestCase):
         self.check_fatal_error(
             ("import faulthandler",
              "faulthandler.enable(all_threads=True)",
-             "faulthandler.sigsegv(True)"),
+             "faulthandler._sigsegv(True)"),
             3,
             'Segmentation fault',
             all_threads=True)
@@ -177,14 +177,14 @@ class FaultHandlerTests(unittest.TestCase):
     def test_disabled(self):
         self.check_fatal_error_disabled(
             "import faulthandler",
-            "faulthandler.sigsegv()")
+            "faulthandler._sigsegv()")
 
     def test_enable_disable(self):
         self.check_fatal_error_disabled(
             "import faulthandler",
             "faulthandler.enable()",
             "faulthandler.disable()",
-            "faulthandler.sigsegv()")
+            "faulthandler._sigsegv()")
 
     def test_is_enabled(self):
         self.assertFalse(faulthandler.is_enabled())
