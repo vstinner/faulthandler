@@ -276,21 +276,8 @@ dump_frame(int fd, PyFrameObject *frame)
     write(fd, "\n", 1);
 }
 
-/* Write the current Python traceback into the file 'fd':
-
-   Traceback (most recent call first):
-     File "xxx", line xxx in <xxx>
-     File "xxx", line xxx in <xxx>
-     ...
-     File "xxx", line xxx in <xxx>
-
-   Write only the first MAX_FRAME_DEPTH frames. If the traceback is truncated, write
-   the line "  ...".
-
-   This function is signal safe. */
-
 static void
-faulthandler_dump_traceback(int fd, PyThreadState *tstate, int write_header)
+dump_traceback(int fd, PyThreadState *tstate, int write_header)
 {
     PyFrameObject *frame;
     unsigned int depth;
@@ -315,6 +302,25 @@ faulthandler_dump_traceback(int fd, PyThreadState *tstate, int write_header)
     }
 }
 
+/* Write the current Python traceback into the file 'fd':
+
+   Traceback (most recent call first):
+     File "xxx", line xxx in <xxx>
+     File "xxx", line xxx in <xxx>
+     ...
+     File "xxx", line xxx in <xxx>
+
+   Write only the first MAX_FRAME_DEPTH frames. If the traceback is truncated, write
+   the line "  ...".
+
+   This function is signal safe. */
+
+static void
+_Py_DumpTraceback(int fd, PyThreadState *tstate)
+{
+    dump_traceback(fd, tstate, 1);
+}
+
 /* Write the thread identifier into the file 'fd': "Current thread 0xHHHH:\" if
    is_current is true, "Thread 0xHHHH:\n" otherwise.
 
@@ -337,7 +343,7 @@ write_thread_id(int fd, PyThreadState *tstate, int is_current)
    This function is signal safe. */
 
 static const char*
-faulthandler_dump_traceback_threads(int fd, PyThreadState *current_thread)
+_Py_DumpTracebackThreads(int fd, PyThreadState *current_thread)
 {
     PyInterpreterState *interp;
     PyThreadState *tstate;
@@ -364,7 +370,7 @@ faulthandler_dump_traceback_threads(int fd, PyThreadState *current_thread)
             break;
         }
         write_thread_id(fd, tstate, tstate == current_thread);
-        faulthandler_dump_traceback(fd, tstate, 0);
+        dump_traceback(fd, tstate, 0);
         tstate = PyThreadState_Next(tstate);
         nthreads++;
     } while (tstate != NULL);
@@ -444,14 +450,14 @@ faulthandler_dump_traceback_py(PyObject *self,
     }
 
     if (all_threads) {
-        errmsg = faulthandler_dump_traceback_threads(fd, tstate);
+        errmsg = _Py_DumpTracebackThreads(fd, tstate);
         if (errmsg != NULL) {
             PyErr_SetString(PyExc_RuntimeError, errmsg);
             return NULL;
         }
     }
     else {
-        faulthandler_dump_traceback(fd, tstate, 1);
+        _Py_DumpTraceback(fd, tstate);
     }
     Py_RETURN_NONE;
 }
@@ -508,9 +514,9 @@ faulthandler_fatal_error(int signum)
         return;
 
     if (fatal_error.all_threads)
-        faulthandler_dump_traceback_threads(fd, tstate);
+        _Py_DumpTracebackThreads(fd, tstate);
     else
-        faulthandler_dump_traceback(fd, tstate, 1);
+        _Py_DumpTraceback(fd, tstate);
 }
 
 /* Install handler for fatal signals (SIGSEGV, SIGFPE, ...). */
@@ -647,11 +653,11 @@ faulthandler_alarm(int signum)
     if (fault_alarm.all_threads) {
         const char* errmsg;
 
-        errmsg = faulthandler_dump_traceback_threads(fault_alarm.fd, tstate);
+        errmsg = _Py_DumpTracebackThreads(fault_alarm.fd, tstate);
         ok = (errmsg == NULL);
     }
     else {
-        faulthandler_dump_traceback(fault_alarm.fd, tstate, 1);
+        _Py_DumpTraceback(fault_alarm.fd, tstate);
         ok = 1;
     }
 
@@ -756,9 +762,9 @@ faulthandler_user(int signum)
     }
 
     if (user->all_threads)
-        faulthandler_dump_traceback_threads(user->fd, tstate);
+        _Py_DumpTracebackThreads(user->fd, tstate);
     else
-        faulthandler_dump_traceback(user->fd, tstate, 1);
+        _Py_DumpTraceback(user->fd, tstate);
 }
 
 static PyObject*
