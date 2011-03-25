@@ -125,6 +125,7 @@ Version 1.6 (under development)
 
  * Set module size to 0, instead of -1, to be able to unload the module
  * Fix a reference leak in dump_traceback_later()
+ * Fix register() if it called twice with the same signal
 
 Version 1.5 (2011-03-24)
 ------------------------

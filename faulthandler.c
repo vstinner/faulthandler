@@ -733,6 +733,21 @@ faulthandler_cancel_dump_traceback_later_py(PyObject *self)
 }
 #endif
 
+static user_signal_t *
+faulthandler_user_find(int signum, unsigned int *p_index)
+{
+    unsigned int i;
+
+    for (i=0; i < user_signals.nsignal; i++) {
+        if (user_signals.signals[i].signum == signum) {
+            if (p_index != NULL)
+                *p_index = i;
+            return &user_signals.signals[i];
+        }
+    }
+    return NULL;
+}
+
 /* Handler of user signals (e.g. SIGUSR1).
 
    Dump the traceback of the current thread, or of all threads if
@@ -743,19 +758,12 @@ faulthandler_cancel_dump_traceback_later_py(PyObject *self)
 static void
 faulthandler_user(int signum)
 {
-    user_signal_t *user = NULL;
-    unsigned int i;
+    user_signal_t *user;
     PyThreadState *tstate;
 
-    for (i=0; i < user_signals.nsignal; i++) {
-        user = &user_signals.signals[i];
-        if (user->signum == signum)
-            break;
-    }
-    if (user == NULL) {
-        /* user_signals.nsignal == 0 (unlikely) */
+    user = faulthandler_user_find(signum, NULL);
+    if (user == NULL)
         return;
-    }
 
     /* PyThreadState_Get() doesn't give the state of the current thread if
        the thread doesn't hold the GIL. Read the thread local storage (TLS)
@@ -788,7 +796,7 @@ faulthandler_register(PyObject *self,
 #ifdef HAVE_SIGACTION
     struct sigaction action;
 #endif
-    int err;
+    int is_new, err;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
         "i|Oi:register", kwlist,
@@ -838,17 +846,21 @@ faulthandler_register(PyObject *self,
     if (fd == -1)
         return NULL;
 
-    user_signals.nsignal++;
-    size = user_signals.nsignal * sizeof(user_signal_t);
-    if (size / user_signals.nsignal != sizeof(user_signal_t)) {
-        /* integer overflow */
-        return PyErr_NoMemory();
+    user = faulthandler_user_find(signum, NULL);
+    is_new = (user == NULL);
+    if (is_new) {
+        user_signals.nsignal++;
+        size = user_signals.nsignal * sizeof(user_signal_t);
+        if (size / user_signals.nsignal != sizeof(user_signal_t)) {
+            /* integer overflow */
+            return PyErr_NoMemory();
+        }
+        signals = realloc(user_signals.signals, size);
+        if (signals == NULL)
+            return PyErr_NoMemory();
+        user_signals.signals = signals;
+        user = &signals[user_signals.nsignal - 1];
     }
-    signals = realloc(user_signals.signals, size);
-    if (signals == NULL)
-        return PyErr_NoMemory();
-    user_signals.signals = signals;
-    user = &signals[user_signals.nsignal - 1];
 
 #ifdef HAVE_SIGACTION
     action.sa_handler = faulthandler_user;
@@ -860,13 +872,16 @@ faulthandler_register(PyObject *self,
     err = (previous == SIG_ERR);
 #endif
     if (err) {
-        user_signals.nsignal--;
+        if (is_new)
+            user_signals.nsignal--;
         PyErr_SetFromErrno(PyExc_OSError);
         return NULL;
     }
 
-    Py_INCREF(file);
     user->signum = signum;
+    if (!is_new)
+        Py_DECREF(user->file);
+    Py_INCREF(file);
     user->file = file;
     user->fd = fd;
     user->all_threads = all_threads;
@@ -896,13 +911,7 @@ faulthandler_unregister_py(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "i:unregister", &signum))
         return NULL;
 
-    user = NULL;
-    for (index=0; index < user_signals.nsignal; index++) {
-        if (user_signals.signals[index].signum == signum) {
-            user = &user_signals.signals[index];
-            break;
-        }
-    }
+    user = faulthandler_user_find(signum, &index);
     if (user == NULL) {
         Py_INCREF(Py_False);
         return Py_False;
@@ -1119,4 +1128,3 @@ faulthandler_unload(void)
     }
 #endif
 }
-
