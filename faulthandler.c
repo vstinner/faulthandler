@@ -96,7 +96,7 @@ static const unsigned char faulthandler_nsignals = \
     sizeof(faulthandler_handlers) / sizeof(faulthandler_handlers[0]);
 
 #ifdef HAVE_SIGALTSTACK
-static stack_t faulthandler_stack;
+static stack_t stack;
 #endif
 
 /* Forward */
@@ -567,7 +567,7 @@ faulthandler_enable(PyObject *self, PyObject *args, PyObject *kwargs)
             sigemptyset(&action.sa_mask);
             action.sa_flags = 0;
 #ifdef HAVE_SIGALTSTACK
-            if (faulthandler_stack.ss_sp != NULL)
+            if (stack.ss_sp != NULL)
                 action.sa_flags |= SA_ONSTACK;
 #endif
             err = sigaction(handler->signum, &action, &handler->previous);
@@ -1061,11 +1061,11 @@ initfaulthandler(void)
     /* Try to allocate an alternate stack for faulthandler() signal handler to
      * be able to allocate memory on the stack, even on a stack overflow. If it
      * fails, ignore the error. */
-    faulthandler_stack.ss_flags = SS_ONSTACK;
-    faulthandler_stack.ss_size = SIGSTKSZ;
-    faulthandler_stack.ss_sp = PyMem_Malloc(faulthandler_stack.ss_size);
-    if (faulthandler_stack.ss_sp != NULL) {
-        (void)sigaltstack(&faulthandler_stack, NULL);
+    stack.ss_flags = SS_ONSTACK;
+    stack.ss_size = SIGSTKSZ;
+    stack.ss_sp = PyMem_Malloc(stack.ss_size);
+    if (stack.ss_sp != NULL) {
+        (void)sigaltstack(&stack, NULL);
     }
 #endif
 
@@ -1108,9 +1108,9 @@ faulthandler_unload(void)
     fatal_error.file = NULL;
     faulthandler_disable();
 #ifdef HAVE_SIGALTSTACK
-    if (faulthandler_stack.ss_sp != NULL) {
-        PyMem_Free(faulthandler_stack.ss_sp);
-        faulthandler_stack.ss_sp = NULL;
+    if (stack.ss_sp != NULL) {
+        PyMem_Free(stack.ss_sp);
+        stack.ss_sp = NULL;
     }
 #endif
 }
