@@ -1019,7 +1019,7 @@ static struct PyModuleDef module_def = {
     PyModuleDef_HEAD_INIT,
     "faulthandler",
     module_doc,
-    -1,
+    0, /* non negative size to be able to unload the module */
     module_methods,
     NULL,
     NULL,
