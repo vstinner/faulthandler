@@ -673,7 +673,8 @@ faulthandler_alarm(int signum)
 }
 
 static PyObject*
-faulthandler_dump_traceback_later(PyObject *self, PyObject *args, PyObject *kwargs)
+faulthandler_dump_traceback_later(PyObject *self,
+                                  PyObject *args, PyObject *kwargs)
 {
     static char *kwlist[] = {"delay", "repeat", "file", "all_threads", NULL};
     int delay;
@@ -710,6 +711,7 @@ faulthandler_dump_traceback_later(PyObject *self, PyObject *args, PyObject *kwar
         return NULL;
     }
 
+    Py_XDECREF(fault_alarm.file);
     Py_INCREF(file);
     fault_alarm.file = file;
     fault_alarm.fd = fd;
