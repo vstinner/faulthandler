@@ -378,16 +378,32 @@ _Py_DumpTracebackThreads(int fd, PyThreadState *current_thread)
     return NULL;
 }
 
-static int
-faulthandler_get_fileno(PyObject *file)
+/* Get the file descriptor of a file by calling its fileno() method and then
+   call its flush() method.
+
+   If file is NULL or Py_None, use sys.stderr as the new file.
+
+   On success, return the new file and write the file descriptor into *p_fd.
+   On error, return NULL. */
+
+static PyObject*
+faulthandler_get_fileno(PyObject *file, int *p_fd)
 {
     PyObject *result;
     long fd_long;
     int fd;
 
+    if (file == NULL || file == Py_None) {
+        file = PySys_GetObject("stderr");
+        if (file == NULL) {
+            PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stderr");
+            return NULL;
+        }
+    }
+
     result = PyObject_CallMethod(file, "fileno", "");
     if (result == NULL)
-        return -1;
+        return NULL;
 
     fd = -1;
     if (PYINT_CHECK(result)) {
@@ -400,7 +416,7 @@ faulthandler_get_fileno(PyObject *file)
     if (fd == -1) {
         PyErr_SetString(PyExc_RuntimeError,
                         "file.fileno() is not a valid file descriptor");
-        return -1;
+        return NULL;
     }
 
     result = PyObject_CallMethod(file, "flush", "");
@@ -410,7 +426,8 @@ faulthandler_get_fileno(PyObject *file)
         /* ignore flush() error */
         PyErr_Clear();
     }
-    return fd;
+    *p_fd = fd;
+    return file;
 }
 
 static PyObject*
@@ -429,16 +446,8 @@ faulthandler_dump_traceback_py(PyObject *self,
         &file, &all_threads))
         return NULL;
 
-    if (file == NULL) {
-        file = PySys_GetObject("stderr");
-        if (file == NULL) {
-            PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stderr");
-            return NULL;
-        }
-    }
-
-    fd = faulthandler_get_fileno(file);
-    if (fd == -1)
+    file = faulthandler_get_fileno(file, &fd);
+    if (file == NULL)
         return NULL;
 
     /* The caller holds the GIL and so PyThreadState_Get() can be used */
@@ -542,16 +551,8 @@ faulthandler_enable(PyObject *self, PyObject *args, PyObject *kwargs)
         "|Oi:enable", kwlist, &file, &all_threads))
         return NULL;
 
-    if (file == NULL) {
-        file = PySys_GetObject("stderr");
-        if (file == NULL) {
-            PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stderr");
-            return NULL;
-        }
-    }
-
-    fd = faulthandler_get_fileno(file);
-    if (fd == -1)
+    file = faulthandler_get_fileno(file, &fd);
+    if (file == NULL)
         return NULL;
 
     Py_XDECREF(fatal_error.file);
@@ -693,16 +694,8 @@ faulthandler_dump_traceback_later(PyObject *self,
         return NULL;
     }
 
-    if (file == NULL || file == Py_None) {
-        file = PySys_GetObject("stderr");
-        if (file == NULL) {
-            PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stderr");
-            return NULL;
-        }
-    }
-
-    fd = faulthandler_get_fileno(file);
-    if (fd == -1)
+    file = faulthandler_get_fileno(file, &fd);
+    if (file == NULL)
         return NULL;
 
     previous = signal(SIGALRM, faulthandler_alarm);
@@ -834,16 +827,8 @@ faulthandler_register(PyObject *self,
     }
 #endif
 
-    if (file == NULL || file == Py_None) {
-        file = PySys_GetObject("stderr");
-        if (file == NULL) {
-            PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stderr");
-            return NULL;
-        }
-    }
-
-    fd = faulthandler_get_fileno(file);
-    if (fd == -1)
+    file = faulthandler_get_fileno(file, &fd);
+    if (file == NULL)
         return NULL;
 
     user = faulthandler_user_find(signum, NULL);
