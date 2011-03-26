@@ -918,7 +918,7 @@ faulthandler_unregister_py(PyObject *self, PyObject *args)
     }
 
     faulthandler_unregister(user);
-    Py_DECREF(user->file);
+    Py_CLEAR(user->file);
     if (index != user_signals.nsignal - 1) {
         size = user_signals.nsignal - index - 1;
         size *= sizeof(user_signals.signals[0]);
