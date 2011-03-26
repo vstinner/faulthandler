@@ -1,3 +1,5 @@
+ * sync doc
+ * sync Py_CLEAR()
  * write a tool to "preload" faulthandler and enable it
  * disable handlers at fork?
  * what about child processes?

@@ -947,6 +947,16 @@ faulthandler_sigfpe(PyObject *self, PyObject *args)
 static PyObject *
 faulthandler_sigbus(PyObject *self, PyObject *args)
 {
+    /* faulthandler_fatal_error() restores the previous signal handler and then
+       gives back the execution flow to the program. In a normal case, the
+       SIGBUS was raised by the kernel because of a fault, and so if the
+       program retries to execute the same instruction, the fault will be
+       raised again.
+
+       Here the fault is simulated by a fake SIGBUS signal raised by the
+       application. We have to raise SIGBUS at lease twice: once for
+       faulthandler_fatal_error(), and one more time for the previous signal
+       handler. */
     while(1)
         raise(SIGBUS);
     Py_RETURN_NONE;
@@ -957,6 +967,8 @@ faulthandler_sigbus(PyObject *self, PyObject *args)
 static PyObject *
 faulthandler_sigill(PyObject *self, PyObject *args)
 {
+    /* see faulthandler_sigbus() comment explaining why while(1) is
+       used here */
     while(1)
         raise(SIGILL);
     Py_RETURN_NONE;
