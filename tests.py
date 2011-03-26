@@ -56,14 +56,11 @@ def temporary_filename():
            pass
 
 class FaultHandlerTests(unittest.TestCase):
-    def setUp(self):
-        faulthandler.disable()
-
     def get_output(self, code, filename=None):
         """
-        Run the specified code in Python (in a new child process) and get the
-        output: read from standard error or from a file (if filename is set).
-        Return the output as a list.
+        Run the specified code in Python (in a new child process) and read the
+        output from the standard error or from a file (if filename is set).
+        Return the output lines as a list.
 
         Strip the reference count from the standard error for Python debug
         build.
@@ -166,7 +163,7 @@ class FaultHandlerTests(unittest.TestCase):
 
     def check_fatal_error_disabled(self, *code):
         """
-        Ensure that the faulthandle is disabled when a fatal error occurs.
+        Ensure that the fault handler is disabled when a fatal error occurs.
         """
         not_expected = 'Fatal Python error'
         stderr = self.get_output(code)
@@ -187,15 +184,21 @@ class FaultHandlerTests(unittest.TestCase):
             "faulthandler._sigsegv()")
 
     def test_is_enabled(self):
-        self.assertFalse(faulthandler.is_enabled())
-        faulthandler.enable()
-        self.assertTrue(faulthandler.is_enabled())
-        faulthandler.disable()
-        self.assertFalse(faulthandler.is_enabled())
+        was_enabled = faulthandler.is_enabled()
+        try:
+            faulthandler.enable()
+            self.assertTrue(faulthandler.is_enabled())
+            faulthandler.disable()
+            self.assertFalse(faulthandler.is_enabled())
+        finally:
+            if was_enabled:
+                faulthandler.enable()
+            else:
+                faulthandler.disable()
 
     def check_dump_traceback(self, filename):
         """
-        Call explicitly dump_traceback() function and check its output.
+        Explicitly call dump_traceback() function and check its output.
         Raise an error if the output doesn't match the expected format.
         """
         code = (
@@ -422,34 +425,6 @@ class FaultHandlerTests(unittest.TestCase):
     def test_register_threads(self):
         self.check_register(all_threads=True)
 
-    def test_refcount(self):
-        """
-        Test written to check for reference leaks.
-        """
-        faulthandler.enable()
-        faulthandler.enable()
-        faulthandler.disable()
-        faulthandler.disable()
-        faulthandler.enable()
-        faulthandler.disable()
-
-        if hasattr(signal, "SIGUSR1"):
-            faulthandler.register(signal.SIGUSR1)
-            faulthandler.register(signal.SIGUSR1)
-            faulthandler.register(signal.SIGUSR2)
-            faulthandler.register(signal.SIGUSR2)
-            faulthandler.unregister(signal.SIGUSR1)
-            faulthandler.unregister(signal.SIGUSR2)
-
-        if hasattr(faulthandler, 'dump_traceback_later'):
-            faulthandler.dump_traceback_later(3600)
-            faulthandler.dump_traceback_later(3600)
-            faulthandler.cancel_dump_traceback_later()
-
-        with tempfile.NamedTemporaryFile() as file:
-            faulthandler.dump_traceback(file=file)
-            faulthandler.dump_traceback(file=file, all_threads=True)
 
 if __name__ == "__main__":
     unittest.main()
-
