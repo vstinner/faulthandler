@@ -24,7 +24,11 @@ see the traceback, or pass a file to faulthandler.enable().
 faulthandler is implemented in C using signal handlers to be able to dump a
 traceback on a crash or when Python is blocked (eg. deadlock).
 
-Website: https://github.com/haypo/faulthandler/wiki/
+Website:
+https://github.com/haypo/faulthandler/wiki/
+
+faulthandler is part of Python since Python 3.3:
+http://docs.python.org/dev/library/faulthandler.html
 
 
 Example
@@ -65,8 +69,7 @@ faulthandler module API
 There are 4 different ways to display the Python traceback:
 
  * enable(): on a crash
- * dump_traceback_later(): after a certain amount of time (useful if your
-   program hangs)
+ * dump_tracebacks_later(): after a timeout (useful if your program hangs)
  * register(): by sending a signal (eg. SIGUSR1). It doesn't work on Windows.
  * dump_traceback(): explicitly
 
@@ -80,36 +83,44 @@ Dump the current traceback:
 
  * dump_traceback(file=sys.stderr, all_threads=False): dump traceback of the
    current thread, or of all threads if all_threads is True, into file
- * dump_traceback_later(delay, repeat=False, file=sys.stderr, all_threads=False):
-   dump the traceback of the current thread, or of all threads if all_threads
-   is True, in delay seconds, or each delay seconds if repeat is True. If the
-   function is called twice, the new call replaces previous parameters.
- * cancel_dump_traceback_later(): cancel the previous call to
-   dump_traceback_later()
+ * dump_tracebacks_later(timeout, repeat=False, file=sys.stderr,
+   all_threads=False): dump the traceback of the current thread, or of all
+   threads if all_threads is True, in timeout seconds, or each timeout seconds
+   if repeat is True. If the function is called twice, the new call replaces
+   previous parameters.
+ * cancel_dump_tracebacks_later(): cancel the previous call to
+   dump_tracebacks_later()
 
-dump_traceback_later() is implemented using the SIGALRM signal and the alarm()
+dump_tracebacks_later() is implemented using the SIGALRM signal and the alarm()
 function: if the signal handler is called during a system call, the system call
 is interrupted (return EINTR). It it not available on Windows.
 
-enable() and dump_traceback_later() keep an internal reference to the output
-file. Use disable() and cancel_dump_traceback_later() to clear this reference.
+enable() and dump_tracebacks_later() keep an internal reference to the output
+file. Use disable() and cancel_dump_tracebacks_later() to clear this reference.
 
 Dump the traceback on an user signal:
 
  * register(signum, file=sys.stderr, all_threads=False): register an handler
    for the signal 'signum': dump the traceback of the current thread, or of all
-   threads if all_threads is True, into file"
+   threads if all_threads is True, into file". Not available on Windows.
  * unregister(signum): unregister the handler of the signal 'signum' registered
-   by register()
+   by register(). Not available on Windows.
 
 Functions to test the fault handler:
 
+ * _fatal_error(message): Exit Python with a fatal error, call Py_FatalError()
+   with message.
+ * _read_null(): read from the NULL pointer (raise SIGSEGV or SIGBUS depending
+   on the platform)
+ * _sigabrt(): raise a SIGABRT signal (Aborted)
  * _sigbus(): raise a SIGBUS signal (Bus error)
  * _sigfpe(): raise a SIGFPE signal (Floating point exception), do a division by
    zero
  * _sigill(): raise a SIGILL signal (Illegal instruction)
  * _sigsegv(): raise a SIGSEGV signal (Segmentation fault), read memory from
    NULL (address 0)
+ * _stack_overflow(): raise a stack overflow error. Not available on all
+   platforms.
 
 sigbus() and sigill() are not available on all operation systems.
 
@@ -120,17 +131,48 @@ the major version, and "version & 255" to get the minor version.
 Changelog
 =========
 
-Version 1.6 (under development)
+Version 2.0 (under development)
 -------------------------------
 
- * Set module size to 0, instead of -1, to be able to unload the module
- * Fix a reference leak in dump_traceback_later()
+Major changes:
+
+ * faulthandler is now part of Python 3.3
+ * enable() handles also the SIGABRT signal
+ * Add exit option to dump_tracebacks_later(): if True, exit the program
+   on timeout after dumping the traceback
+
+Other changes:
+
+ * register() and unregister() are no more available on Windows. They were
+   useless: only SIGSEGV, SIGABRT and SIGILL can be handled by the application,
+   and these signals can only be handled by enable().
+ * Add _fatal_error(), _read_null(), _sigabrt() and _stack_overflow() test
+   functions
+ * register() uses sigaction() SA_RESTART flag to try to not interrupt the
+   current system call
+ * The fault handler calls the previous signal handler: use sigaction()
+   SA_NODEFER flag to call it immediatly
+ * enable() raises an OSError if it was not possible to register a signal
+   handler
+ * Set module size to 0, instead of -1, to be able to unload the module with
+   Python 3
+ * Fix a reference leak in dump_tracebacks_later()
  * Fix register() if it called twice with the same signal
  * Implement m_traverse for Python 3 to help the garbage collector
- * Rename sigsegv() to _sigsegv()
- * Rename sigfpe() to _sigfpe()
- * Rename sigbus() to _sigbus()
- * Rename sigill() to _sigill()
+ * Move code from faulthandler/*.c to faulthandler.c and traceback.c: the code
+   is simpler and it was easier to integrate faulthandler into Python 3.3 using
+   one file (traceback.c already exists in Python)
+ * register() uses a static list for all signals instead of reallocating memory
+   each time a new signal is registered, because the list is shared with the
+   signal handler which may be called anytime.
+ * Rename:
+
+   * dump_traceback_later() to dump_tracebacks_later()
+   * cancel_dump_traceback_later() to cancel_dump_tracebacks_later()
+   * sigsegv() to _sigsegv()
+   * sigfpe() to _sigfpe()
+   * sigbus() to _sigbus()
+   * sigill() to _sigill()
 
 Version 1.5 (2011-03-24)
 ------------------------

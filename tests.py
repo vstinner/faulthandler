@@ -9,6 +9,8 @@ import sys
 import tempfile
 import unittest
 
+TIMEOUT = 1
+
 Py_REF_DEBUG = hasattr(sys, 'gettotalrefcount')
 
 try:
@@ -26,23 +28,25 @@ except AttributeError:
             return wrapper
         return decorator
 
-def decode_output(output):
-    return output.decode('ascii', 'backslashreplace')
+try:
+    from resource import setrlimit, RLIMIT_CORE, error as resource_error
+except ImportError:
+    prepare_subprocess = None
+else:
+    def prepare_subprocess():
+        # don't create core file
+        try:
+            setrlimit(RLIMIT_CORE, (0, 0))
+        except (ValueError, resource_error):
+            pass
 
-def read_file(filename):
-    with open(filename, "rb") as fp:
-        output = fp.read()
-    return decode_output(output)
-
-def expected_traceback(line1, line2, all_threads):
-    if all_threads:
-        expected = ['Current thread XXX:']
-    else:
-        expected = ['Traceback (most recent call first):']
-    expected.extend((
-        '  File "<string>", line %s in func' % line1,
-        '  File "<string>", line %s in <module>' % line2))
-    return expected
+def expected_traceback(lineno1, lineno2, header, count=1):
+    regex = header
+    regex += '  File "<string>", line %s in func\n' % lineno1
+    regex += '  File "<string>", line %s in <module>' % lineno2
+    if count != 1:
+        regex = (regex + '\n') * (count - 1) + regex
+    return '^' + regex + '$'
 
 @contextmanager
 def temporary_filename():
@@ -63,125 +67,185 @@ class FaultHandlerTests(unittest.TestCase):
         Return the output lines as a list.
 
         Strip the reference count from the standard error for Python debug
-        build.
+        build, and replace "Current thread 0x00007f8d8fbd9700" by "Current
+        thread XXX".
         """
-        code = '\n'.join(code)
+        options = {}
+        if prepare_subprocess:
+            options['preexec_fn'] = prepare_subprocess
         process = subprocess.Popen(
             [sys.executable, '-c', code],
-            stderr=subprocess.PIPE)
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **options)
         stdout, stderr = process.communicate()
+        exitcode = process.wait()
+        output = stdout.decode('ascii', 'backslashreplace')
+        output = re.sub(r"\[\d+ refs\]\r?\n?$", "", output)
         if filename:
-            output = read_file(filename)
-        else:
-            output = decode_output(stderr)
-            if Py_REF_DEBUG:
-                output = re.sub(r"\[\d+ refs\]\r?\n?$", "", output)
+            self.assertEqual(output, '')
+            with open(filename, "rb") as fp:
+                output = fp.read()
+            output = output.decode('ascii', 'backslashreplace')
         output = re.sub('Current thread 0x[0-9a-f]+',
                         'Current thread XXX',
                         output)
-        return output.splitlines()
+        return output.splitlines(), exitcode
 
-    def check_fatal_error(self, code, line_number, name,
-                               filename=None, all_threads=False):
+    def check_fatal_error(self, code, line_number, name_regex,
+                          filename=None, all_threads=False, other_regex=None):
         """
         Check that the fault handler for fatal errors is enabled and check the
         traceback from the child process output.
 
         Raise an error if the output doesn't match the expected format.
         """
-        expected = [
-            'Fatal Python error: ' + name,
-            '']
         if all_threads:
-            expected.append('Current thread XXX:')
+            header = r'Current thread XXX'
         else:
-            expected.append('Traceback (most recent call first):')
-        expected.append('  File "<string>", line %s in <module>' % line_number)
-        lines = self.get_output(code, filename)
-        self.assertEqual(lines, expected)
+            header = r'Traceback \(most recent call first\)'
+        regex = """
+^Fatal Python error: %s
+
+%s:
+  File "<string>", line %s in <module>$
+""".strip()
+        regex = regex % (name_regex, header, line_number)
+        if other_regex:
+            regex += '|' + other_regex
+        output, exitcode = self.get_output(code, filename)
+        output = '\n'.join(output)
+        self.assertRegex(output, regex)
+        self.assertNotEqual(exitcode, 0)
+
+    def test_read_null(self):
+        self.check_fatal_error("""
+import faulthandler
+faulthandler.enable()
+faulthandler._read_null()
+""".strip(),
+            3,
+            '(?:Segmentation fault|Bus error)')
 
     def test_sigsegv(self):
-        self.check_fatal_error(
-            ("import faulthandler; faulthandler.enable()",
-             "faulthandler._sigsegv()"),
-            2,
+        self.check_fatal_error("""
+import faulthandler
+faulthandler.enable()
+faulthandler._sigsegv()
+""".strip(),
+            3,
             'Segmentation fault')
+
+    def test_sigabrt(self):
+        self.check_fatal_error("""
+import faulthandler
+faulthandler.enable()
+faulthandler._sigabrt()
+""".strip(),
+            3,
+            'Aborted')
 
     @skipIf(sys.platform == 'win32',
             "SIGFPE cannot be caught on Windows")
     def test_sigfpe(self):
-        self.check_fatal_error(
-            ("import faulthandler; faulthandler.enable(); "
-             "faulthandler._sigfpe()",),
-            1,
+        self.check_fatal_error("""
+import faulthandler
+faulthandler.enable()
+faulthandler._sigfpe()
+""".strip(),
+            3,
             'Floating point exception')
 
     @skipIf(not hasattr(faulthandler, '_sigbus'),
             "need faulthandler._sigbus()")
     def test_sigbus(self):
-        self.check_fatal_error(
-            ("import faulthandler; faulthandler.enable()",
-             "faulthandler._sigbus()"),
-            2,
+        self.check_fatal_error("""
+import faulthandler
+faulthandler.enable()
+faulthandler._sigbus()
+""".strip(),
+            3,
             'Bus error')
 
     @skipIf(not hasattr(faulthandler, '_sigill'),
             "need faulthandler._sigill()")
     def test_sigill(self):
-        self.check_fatal_error(
-            ("import faulthandler; faulthandler.enable()",
-             "faulthandler._sigill()"),
-            2,
+        self.check_fatal_error("""
+import faulthandler
+faulthandler.enable()
+faulthandler._sigill()
+""".strip(),
+            3,
             'Illegal instruction')
 
+    def test_fatal_error(self):
+        if sys.version_info >= (2, 6):
+            arg = "b'xyz'"
+        else:
+            arg = "'xyz'"
+        message = "xyz\nFatal Python error: Aborted"
+        self.check_fatal_error("""
+import faulthandler
+faulthandler.enable()
+faulthandler._fatal_error(%s)
+""".strip() % (arg,),
+            3,
+            message)
+
+    @skipIf(not hasattr(faulthandler, '_stack_overflow'),
+            'need faulthandler._stack_overflow()')
+    def test_stack_overflow(self):
+        self.check_fatal_error("""
+import faulthandler
+faulthandler.enable()
+faulthandler._stack_overflow()
+""".strip(),
+            3,
+            '(?:Segmentation fault|Bus error)',
+            other_regex='unable to raise a stack overflow')
+
     def test_gil_released(self):
-        self.check_fatal_error(
-            ("import faulthandler; faulthandler.enable()",
-             "faulthandler._sigsegv(True)"),
-            2,
-            'Segmentation fault')
+        self.check_fatal_error("""
+import faulthandler
+faulthandler.enable()
+faulthandler._read_null(True)
+""".strip(),
+            3,
+            '(?:Segmentation fault|Bus error)')
 
     def test_enable_file(self):
         with temporary_filename() as filename:
-            self.check_fatal_error(
-                ("import faulthandler",
-                 "output = open(%r, 'wb')" % filename,
-                 "faulthandler.enable(output)",
-                 "faulthandler._sigsegv(True)"),
+            self.check_fatal_error("""
+import faulthandler
+output = open(%r, 'wb')
+faulthandler.enable(output)
+faulthandler._read_null()
+""".strip() % (filename,),
                 4,
-                'Segmentation fault',
+                '(?:Segmentation fault|Bus error)',
                 filename=filename)
 
     def test_enable_threads(self):
-        self.check_fatal_error(
-            ("import faulthandler",
-             "faulthandler.enable(all_threads=True)",
-             "faulthandler._sigsegv(True)"),
+        self.check_fatal_error("""
+import faulthandler
+faulthandler.enable(all_threads=True)
+faulthandler._read_null()
+""".strip(),
             3,
-            'Segmentation fault',
+            '(?:Segmentation fault|Bus error)',
             all_threads=True)
 
-    def check_fatal_error_disabled(self, *code):
-        """
-        Ensure that the fault handler is disabled when a fatal error occurs.
-        """
+    def test_disable(self):
+        code = """
+import faulthandler
+faulthandler.enable()
+faulthandler.disable()
+faulthandler._read_null()
+""".strip()
         not_expected = 'Fatal Python error'
-        stderr = self.get_output(code)
+        stderr, exitcode = self.get_output(code)
         stder = '\n'.join(stderr)
         self.assertTrue(not_expected not in stderr,
                      "%r is present in %r" % (not_expected, stderr))
-
-    def test_disabled(self):
-        self.check_fatal_error_disabled(
-            "import faulthandler",
-            "faulthandler._sigsegv()")
-
-    def test_enable_disable(self):
-        self.check_fatal_error_disabled(
-            "import faulthandler",
-            "faulthandler.enable()",
-            "faulthandler.disable()",
-            "faulthandler._sigsegv()")
+        self.assertNotEqual(exitcode, 0)
 
     def test_is_enabled(self):
         was_enabled = faulthandler.is_enabled()
@@ -201,37 +265,40 @@ class FaultHandlerTests(unittest.TestCase):
         Explicitly call dump_traceback() function and check its output.
         Raise an error if the output doesn't match the expected format.
         """
-        code = (
-            'from __future__ import with_statement',
-            'import faulthandler',
-            '',
-            'def funcB():',
-            '    if %r:' % (bool(filename),),
-            '        with open(%r, "wb") as fp:' % (filename,),
-            '            faulthandler.dump_traceback(fp)',
-            '    else:',
-            '        faulthandler.dump_traceback()',
-            '',
-            'def funcA():',
-            '    funcB()',
-            '',
-            'funcA()',
-        )
+        code = """
+import faulthandler
+
+def funcB():
+    if %s:
+        with open(%s, "wb") as fp:
+            faulthandler.dump_traceback(fp)
+    else:
+        faulthandler.dump_traceback()
+
+def funcA():
+    funcB()
+
+funcA()
+""".strip()
+        code = code % (bool(filename), repr(filename))
         if filename:
-            lineno = 7
+            lineno = 6
         else:
-            lineno = 9
+            lineno = 8
         expected = [
             'Traceback (most recent call first):',
             '  File "<string>", line %s in funcB' % lineno,
-            '  File "<string>", line 12 in funcA',
-            '  File "<string>", line 14 in <module>'
+            '  File "<string>", line 11 in funcA',
+            '  File "<string>", line 13 in <module>'
         ]
-        trace = self.get_output(code, filename)
+        trace, exitcode = self.get_output(code, filename)
         self.assertEqual(trace, expected)
+        self.assertEqual(exitcode, 0)
 
     def test_dump_traceback(self):
         self.check_dump_traceback(None)
+
+    def test_dump_traceback_file(self):
         with temporary_filename() as filename:
             self.check_dump_traceback(filename)
 
@@ -240,183 +307,206 @@ class FaultHandlerTests(unittest.TestCase):
         Call explicitly dump_traceback(all_threads=True) and check the output.
         Raise an error if the output doesn't match the expected format.
         """
-        output = self.get_output((
-            'from __future__ import with_statement',
-            'import faulthandler',
-            'from threading import Thread, Event',
-            'import time',
-            '',
-            'def dump():',
-            '    if %r:' % (bool(filename),),
-            '        with open(%r, "wb") as fp:' % (filename,),
-            '            faulthandler.dump_traceback(fp, all_threads=True)',
-            '    else:',
-            '        faulthandler.dump_traceback(all_threads=True)',
-            '',
-            'class Waiter(Thread):',
-            '    def __init__(self):',
-            '        Thread.__init__(self)',
-            '        self.running = Event()',
-            '        self.stop = Event()',
-            '',
-            '    def run(self):',
-            '        self.running.set()',
-            '        self.stop.wait()',
-            '',
-            'waiter = Waiter()',
-            'waiter.start()',
-            'waiter.running.wait()',
-            'dump()',
-            'waiter.stop.set()',
-            'waiter.join()',
-        ), filename)
+        code = """
+import faulthandler
+from threading import Thread, Event
+import time
+
+def dump():
+    if %s:
+        with open(%s, "wb") as fp:
+            faulthandler.dump_traceback(fp, all_threads=True)
+    else:
+        faulthandler.dump_traceback(all_threads=True)
+
+class Waiter(Thread):
+    # avoid blocking if the main thread raises an exception.
+    daemon = True
+
+    def __init__(self):
+        Thread.__init__(self)
+        self.running = Event()
+        self.stop = Event()
+
+    def run(self):
+        self.running.set()
+        self.stop.wait()
+
+waiter = Waiter()
+waiter.start()
+waiter.running.wait()
+dump()
+waiter.stop.set()
+waiter.join()
+""".strip()
+        code = code % (bool(filename), repr(filename))
+        output, exitcode = self.get_output(code, filename)
         output = '\n'.join(output)
         if filename:
-            lineno = 9
+            lineno = 8
         else:
-            lineno = 11
-        regex = (
-            'Thread 0x[0-9a-f]+:\n'
-            '(?:  File ".*threading.py", line [0-9]+ in wait\n)?'
-            '  File ".*threading.py", line [0-9]+ in wait\n'
-            '  File "<string>", line 21 in run\n'
-            '  File ".*threading.py", line [0-9]+ in __?bootstrap_inner\n'
-            '  File ".*threading.py", line [0-9]+ in __?bootstrap\n'
-            '\n'
-            'Current thread XXX:\n'
-            '  File "<string>", line %s in dump\n'
-            '  File "<string>", line 26 in <module>'
-        ) % lineno
-        self.assertTrue(re.match(regex, output),
-                        "<<<%s>>> doesn't match <<<%s>>>" % (output, regex))
+            lineno = 10
+        regex = """
+^Thread 0x[0-9a-f]+:
+(?:  File ".*threading.py", line [0-9]+ in [_a-z]+
+){1,3}  File "<string>", line 23 in run
+  File ".*threading.py", line [0-9]+ in _?_bootstrap_inner
+  File ".*threading.py", line [0-9]+ in _?_bootstrap
+
+Current thread XXX:
+  File "<string>", line %s in dump
+  File "<string>", line 28 in <module>$
+""".strip()
+        regex = regex % (lineno,)
+        self.assertRegex(output, regex)
+        self.assertEqual(exitcode, 0)
 
     def test_dump_traceback_threads(self):
         self.check_dump_traceback_threads(None)
+
+    def test_dump_traceback_threads_file(self):
         with temporary_filename() as filename:
             self.check_dump_traceback_threads(filename)
 
-    def _check_dump_traceback_later(self, repeat, cancel,
-                                   filename, all_threads):
+    def _check_dump_tracebacks_later(self, all_threads, repeat, cancel, filename):
         """
-        Call dump_traceback_later() two times, or three times if repeat is True.
-        Check the output: the traceback may be written 1, 2 or 3 times
-        depending on repeat and cancel options.
+        Check how many times the traceback is written in timeout x 2.5 seconds,
+        or timeout x 3.5 seconds if cancel is True: 1, 2 or 3 times depending
+        on repeat and cancel options.
 
         Raise an error if the output doesn't match the expect format.
         """
-        code = (
-            'import faulthandler',
-            'import time',
-            '',
-            'def func(repeat, cancel):',
-            '    if not repeat:',
-            '        loops = 2',
-            '    else:',
-            '        loops = 3',
-            '    dump = True',
-            '    for x in range(loops):',
-            '        a = time.time()',
-            '        time.sleep(2)',
-            '        b = time.time()',
-            '        diff = (b - a)',
-            '        if dump:',
-            '            # sleep() interrupted after 1 second',
-            '            assert diff < 2.0',
-            '        else:',
-            '            assert diff >= 2.0',
-            '        if repeat and cancel and 1 <= x:',
-            '            faulthandler.cancel_dump_traceback_later()',
-            '            dump = False',
-            '            cancel = False',
-            '        if not repeat:',
-            '            dump = False',
-            '    if repeat:',
-            '        faulthandler.cancel_dump_traceback_later()',
-            '',
-            'repeat = %s' % repeat,
-            'cancel = %s' % cancel,
-            'if %s:' % bool(filename),
-            '    file = open(%r, "wb")' % filename,
-            'else:',
-            '    file = None',
-            'faulthandler.dump_traceback_later(1, ',
-            '    repeat=repeat, all_threads=%s, file=file)' % all_threads,
-            'func(repeat, cancel)',
-            'if file is not None:',
-            '    file.close()',
-        )
-        trace = self.get_output(code, filename)
+        code = """
+import faulthandler
+import time
 
-        expected = expected_traceback(12, 37, all_threads)
-        if repeat:
-            if cancel:
-                expected *= 2
+def func(repeat, cancel, timeout):
+    if cancel:
+        faulthandler.cancel_dump_tracebacks_later()
+    for loop in range(2):
+        time.sleep(timeout * 1.25)
+    faulthandler.cancel_dump_tracebacks_later()
+
+timeout = %s
+all_threads = %s
+repeat = %s
+cancel = %s
+if %s:
+    file = open(%s, "wb")
+else:
+    file = None
+faulthandler.dump_tracebacks_later(timeout,
+    repeat=repeat, file=file, all_threads=all_threads)
+func(repeat, cancel, timeout)
+if file is not None:
+    file.close()
+""".strip()
+        code = code % (TIMEOUT, all_threads, repeat, cancel,
+                       bool(filename), repr(filename))
+        trace, exitcode = self.get_output(code, filename)
+        trace = '\n'.join(trace)
+
+        if not cancel:
+            if repeat:
+                count = 2
             else:
-                expected *= 3
-        self.assertEqual(trace, expected,
-                         "%r != %r: repeat=%s, cancel=%s, use_filename=%s, all_threads=%s"
-                         % (trace, expected, repeat, cancel, bool(filename), all_threads))
+                count = 1
+            if all_threads:
+                header = 'Current thread XXX:\n'
+                #header = 'Thread 0x[0-9a-f]+:\n'
+            else:
+                header = 'Traceback \(most recent call first\):\n'
+            regex = expected_traceback(8, 21, header, count=count)
+            self.assertRegex(trace, regex)
+        else:
+            self.assertEqual(trace, '')
+        self.assertEqual(exitcode, 0)
 
-    @skipIf(not hasattr(faulthandler, 'dump_traceback_later'),
-            'need faulthandler.dump_traceback_later()')
-    def check_dump_traceback_later(self, repeat=False, cancel=False,
-                                  all_threads=False, file=False):
+    @skipIf(not hasattr(faulthandler, 'dump_tracebacks_later'),
+            'need faulthandler.dump_tracebacks_later()')
+    def check_dump_tracebacks_later(self, all_threads=False, repeat=False, cancel=False,
+                                  file=False):
         if file:
             with temporary_filename() as filename:
-                self._check_dump_traceback_later(repeat, cancel, filename, all_threads)
+                self._check_dump_tracebacks_later(all_threads, repeat, cancel, filename)
         else:
-            self._check_dump_traceback_later(repeat, cancel, None, all_threads)
+            self._check_dump_tracebacks_later(all_threads, repeat, cancel, None)
 
-    def test_dump_traceback_later(self):
-        self.check_dump_traceback_later()
+    def test_dump_tracebacks_later(self):
+        self.check_dump_tracebacks_later()
 
-    def test_dump_traceback_later_repeat(self):
-        self.check_dump_traceback_later(repeat=True)
+    def test_dump_tracebacks_later_threads(self):
+        self.check_dump_tracebacks_later(all_threads=True)
 
-    def test_dump_traceback_later_repeat_cancel(self):
-        self.check_dump_traceback_later(repeat=True, cancel=True)
+    def test_dump_tracebacks_later_repeat(self):
+        self.check_dump_tracebacks_later(repeat=True)
 
-    def test_dump_traceback_later_threads(self):
-        self.check_dump_traceback_later(all_threads=True)
+    def test_dump_tracebacks_later_cancel(self):
+        self.check_dump_tracebacks_later(cancel=True)
 
-    def test_dump_traceback_later_file(self):
-        self.check_dump_traceback_later(file=True)
+    def test_dump_tracebacks_later_file(self):
+        self.check_dump_tracebacks_later(file=True)
 
-    @skipIf(not hasattr(signal, "SIGUSR1"),
-            "need signal.SIGUSR1")
-    def check_register(self, filename=False, all_threads=False):
+    @skipIf(not hasattr(faulthandler, "register"),
+            "need faulthandler.register")
+    def check_register(self, filename=False, all_threads=False,
+                       unregister=False):
         """
-        Register a handler display the traceback on a user signal. Raise the
+        Register a handler displaying the traceback on a user signal. Raise the
         signal and check the written traceback.
 
         Raise an error if the output doesn't match the expected format.
         """
-        code = (
-            'import faulthandler',
-            'import os',
-            'import signal',
-            '',
-            'def func(signum):',
-            '    os.kill(os.getpid(), signum)',
-            '',
-            'signum = signal.SIGUSR1',
-            'if %s:' % bool(filename),
-            '    file = open(%r, "wb")' % filename,
-            'else:',
-            '    file = None',
-            'faulthandler.register(signum, file=file, all_threads=%s)' % all_threads,
-            'func(signum)',
-            'if file is not None:',
-            '    file.close()',
+        signum = signal.SIGUSR1
+        code = """
+import faulthandler
+import os
+import signal
+
+def func(signum):
+    os.kill(os.getpid(), signum)
+
+signum = {signum}
+unregister = {unregister}
+if {has_filename}:
+    file = open({filename}, "wb")
+else:
+    file = None
+faulthandler.register(signum, file=file, all_threads={all_threads})
+if unregister:
+    faulthandler.unregister(signum)
+func(signum)
+if file is not None:
+    file.close()
+""".strip()
+        code = code.format(
+            filename=repr(filename),
+            has_filename=bool(filename),
+            all_threads=all_threads,
+            signum=signum,
+            unregister=unregister,
         )
-        trace = self.get_output(code, filename)
-        expected = expected_traceback(6, 14, all_threads)
-        self.assertEqual(trace, expected,
-                         "%r != %r: use_filename=%s, all_threads=%s"
-                         % (trace, expected, bool(filename), all_threads))
+        trace, exitcode = self.get_output(code, filename)
+        trace = '\n'.join(trace)
+        if not unregister:
+            if all_threads:
+                regex = 'Current thread XXX:\n'
+            else:
+                regex = 'Traceback \(most recent call first\):\n'
+            regex = expected_traceback(6, 17, regex)
+            self.assertRegex(trace, regex)
+        else:
+            self.assertEqual(trace, '')
+        if unregister:
+            self.assertNotEqual(exitcode, 0)
+        else:
+            self.assertEqual(exitcode, 0)
 
     def test_register(self):
         self.check_register()
+
+    def test_unregister(self):
+        self.check_register(unregister=True)
 
     def test_register_file(self):
         with temporary_filename() as filename:
@@ -424,6 +514,18 @@ class FaultHandlerTests(unittest.TestCase):
 
     def test_register_threads(self):
         self.check_register(all_threads=True)
+
+    if not hasattr(unittest.TestCase, 'assertRegex'):
+        # Copy/paste from Python 3.3
+        def assertRegex(self, text, expected_regex, msg=None):
+            """Fail the test unless the text matches the regular expression."""
+            if isinstance(expected_regex, (str, bytes)):
+                assert expected_regex, "expected_regex must not be empty."
+                expected_regex = re.compile(expected_regex)
+            if not expected_regex.search(text):
+                msg = msg or "Regex didn't match"
+                msg = '%s: %r not found in %r' % (msg, expected_regex.pattern, text)
+                raise self.failureException(msg)
 
 
 if __name__ == "__main__":

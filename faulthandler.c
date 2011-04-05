@@ -5,16 +5,26 @@
  */
 
 #include "Python.h"
+#include "pythread.h"
 #include <signal.h>
 
-#define VERSION 0x106
+#define VERSION 0x200
+
+/* Allocate at maximum 100 MB of the stack to raise the stack overflow */
+#define STACK_OVERFLOW_MAX_SIZE (100*1024*1024)
 
 #ifdef SIGALRM
 #  define FAULTHANDLER_LATER
 #endif
 
 #ifndef MS_WINDOWS
+   /* sigaltstack() is not available on Windows */
 #  define HAVE_SIGALTSTACK
+
+   /* register() is useless on Windows, because only SIGSEGV, SIGABRT and
+      SIGILL can be handled by the process, and these signals can only be used
+      with enable(), not using register() */
+#  define FAULTHANDLER_USER
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -47,30 +57,53 @@ static struct {
     PyObject *file;
     int fd;
     int all_threads;
+    PyInterpreterState *interp;
 } fatal_error = {0, NULL, -1, 0};
 
 #ifdef FAULTHANDLER_LATER
 static struct {
     PyObject *file;
     int fd;
-    int delay;
+    int timeout;
     int repeat;
+    PyInterpreterState *interp;
+    int exit;
+    char *header;
+    size_t header_len;
     int all_threads;
 } fault_alarm;
 #endif
 
+#ifdef FAULTHANDLER_USER
 typedef struct {
+    int enabled;
     int signum;
     PyObject *file;
     int fd;
     int all_threads;
     _Py_sighandler_t previous;
+    PyInterpreterState *interp;
 } user_signal_t;
 
-static struct {
-    size_t nsignal;
-    user_signal_t *signals;
-} user_signals = {0, NULL};
+static user_signal_t *user_signals;
+
+/* the following macros come from Python: Modules/signalmodule.c of Python 3.3 */
+#if defined(PYOS_OS2) && !defined(PYCC_GCC)
+#define NSIG 12
+#endif
+#ifndef NSIG
+# if defined(_NSIG)
+#  define NSIG _NSIG            /* For BSD/SysV */
+# elif defined(_SIGMAX)
+#  define NSIG (_SIGMAX + 1)    /* For QNX */
+# elif defined(SIGMAX)
+#  define NSIG (SIGMAX + 1)     /* For djgpp */
+# else
+#  define NSIG 64               /* Use a reasonable default value */
+# endif
+#endif
+
+#endif /* FAULTHANDLER_USER */
 
 
 static fault_handler_t faulthandler_handlers[] = {
@@ -81,6 +114,7 @@ static fault_handler_t faulthandler_handlers[] = {
     {SIGILL, 0, "Illegal instruction", },
 #endif
     {SIGFPE, 0, "Floating point exception", },
+    {SIGABRT, 0, "Aborted", },
     /* define SIGSEGV at the end to make it the default choice if searching the
        handler fails in faulthandler_fatal_error() */
     {SIGSEGV, 0, "Segmentation fault", }
@@ -97,7 +131,10 @@ static void faulthandler_unload(void);
 
 /* from traceback.c */
 extern void _Py_DumpTraceback(int fd, PyThreadState *tstate);
-extern const char* _Py_DumpTracebackThreads(int fd, PyThreadState *current_thread);
+extern const char* _Py_DumpTracebackThreads(
+    int fd,
+    PyInterpreterState *interp,
+    PyThreadState *current_thread);
 
 /* Get the file descriptor of a file by calling its fileno() method and then
    call its flush() method.
@@ -151,6 +188,20 @@ faulthandler_get_fileno(PyObject *file, int *p_fd)
     return file;
 }
 
+/* Get the state of the current thread: only call this function if the current
+   thread holds the GIL. Raise an exception on error. */
+static PyThreadState*
+get_thread_state(void)
+{
+    PyThreadState *tstate = PyThreadState_Get();
+    if (tstate == NULL) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "unable to get the current thread state");
+        return NULL;
+    }
+    return tstate;
+}
+
 static PyObject*
 faulthandler_dump_traceback_py(PyObject *self,
                                PyObject *args, PyObject *kwargs)
@@ -171,16 +222,12 @@ faulthandler_dump_traceback_py(PyObject *self,
     if (file == NULL)
         return NULL;
 
-    /* The caller holds the GIL and so PyThreadState_Get() can be used */
-    tstate = PyThreadState_Get();
-    if (tstate == NULL) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "unable to get the current thread state");
+    tstate = get_thread_state();
+    if (tstate == NULL)
         return NULL;
-    }
 
     if (all_threads) {
-        errmsg = _Py_DumpTracebackThreads(fd, tstate);
+        errmsg = _Py_DumpTracebackThreads(fd, tstate->interp, tstate);
         if (errmsg != NULL) {
             PyErr_SetString(PyExc_RuntimeError, errmsg);
             return NULL;
@@ -193,11 +240,16 @@ faulthandler_dump_traceback_py(PyObject *self,
 }
 
 
-/* Handler of SIGSEGV, SIGFPE, SIGBUS and SIGILL signals.
+/* Handler of SIGSEGV, SIGFPE, SIGABRT, SIGBUS and SIGILL signals.
 
-   Display the current Python traceback and restore the previous handler. The
-   previous handler will be called when the fault handler exits, because the
-   fault will occur again.
+   Display the current Python traceback, restore the previous handler and call
+   the previous handler.
+
+   On Windows, don't call explictly the previous handler, because Windows
+   signal handler would not be called (for an unknown reason). The execution of
+   the program continues at faulthandler_fatal_error() exit, but the same
+   instruction will raise the same fault (signal), and so the previous handler
+   will be called.
 
    This function is signal safe and should only call signal safe functions. */
 
@@ -212,7 +264,6 @@ faulthandler_fatal_error(int signum)
     if (!fatal_error.enabled)
         return;
 
-    /* restore the previous handler */
     for (i=0; i < faulthandler_nsignals; i++) {
         handler = &faulthandler_handlers[i];
         if (handler->signum == signum)
@@ -223,6 +274,7 @@ faulthandler_fatal_error(int signum)
         return;
     }
 
+    /* restore the previous handler */
 #ifdef HAVE_SIGACTION
     (void)sigaction(handler->signum, &handler->previous, NULL);
 #else
@@ -234,25 +286,40 @@ faulthandler_fatal_error(int signum)
     PUTS(fd, handler->name);
     PUTS(fd, "\n\n");
 
-    /* SIGSEGV, SIGFPE, SIGBUS and SIGILL are synchronous signals and so are
-       delivered to the thread that caused the fault. Get the Python thread
-       state of the current thread.
+#ifdef WITH_THREAD
+    /* SIGSEGV, SIGFPE, SIGABRT, SIGBUS and SIGILL are synchronous signals and
+       so are delivered to the thread that caused the fault. Get the Python
+       thread state of the current thread.
 
        PyThreadState_Get() doesn't give the state of the thread that caused the
        fault if the thread released the GIL, and so this function cannot be
        used. Read the thread local storage (TLS) instead: call
        PyGILState_GetThisThreadState(). */
     tstate = PyGILState_GetThisThreadState();
-    if (tstate == NULL)
-        return;
+#else
+    tstate = PyThreadState_Get();
+#endif
 
     if (fatal_error.all_threads)
-        _Py_DumpTracebackThreads(fd, tstate);
-    else
-        _Py_DumpTraceback(fd, tstate);
+        _Py_DumpTracebackThreads(fd, fatal_error.interp, tstate);
+    else {
+        if (tstate != NULL)
+            _Py_DumpTraceback(fd, tstate);
+    }
+
+#ifdef MS_WINDOWS
+    if (signum == SIGSEGV) {
+        /* don't call explictly the previous handler for SIGSEGV in this signal
+           handler, because the Windows signal handler would not be called */
+        return;
+    }
+#endif
+    /* call the previous signal handler: it is called immediatly if we use
+       sigaction() thanks to SA_NODEFER flag, otherwise it is deferred */
+    raise(signum);
 }
 
-/* Install handler for fatal signals (SIGSEGV, SIGFPE, ...). */
+/* Install the handler for fatal signals, faulthandler_fatal_error(). */
 
 static PyObject*
 faulthandler_enable(PyObject *self, PyObject *args, PyObject *kwargs)
@@ -264,9 +331,10 @@ faulthandler_enable(PyObject *self, PyObject *args, PyObject *kwargs)
     fault_handler_t *handler;
 #ifdef HAVE_SIGACTION
     struct sigaction action;
-    int err;
 #endif
+    int err;
     int fd;
+    PyThreadState *tstate;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
         "|Oi:enable", kwlist, &file, &all_threads))
@@ -276,11 +344,16 @@ faulthandler_enable(PyObject *self, PyObject *args, PyObject *kwargs)
     if (file == NULL)
         return NULL;
 
+    tstate = get_thread_state();
+    if (tstate == NULL)
+        return NULL;
+
     Py_XDECREF(fatal_error.file);
     Py_INCREF(file);
     fatal_error.file = file;
     fatal_error.fd = fd;
     fatal_error.all_threads = all_threads;
+    fatal_error.interp = tstate->interp;
 
     if (!fatal_error.enabled) {
         fatal_error.enabled = 1;
@@ -290,20 +363,27 @@ faulthandler_enable(PyObject *self, PyObject *args, PyObject *kwargs)
 #ifdef HAVE_SIGACTION
             action.sa_handler = faulthandler_fatal_error;
             sigemptyset(&action.sa_mask);
-            action.sa_flags = 0;
+            /* Do not prevent the signal from being received from within
+               its own signal handler */
+            action.sa_flags = SA_NODEFER;
 #ifdef HAVE_SIGALTSTACK
-            if (stack.ss_sp != NULL)
+            if (stack.ss_sp != NULL) {
+                /* Call the signal handler on an alternate signal stack
+                   provided by sigaltstack() */
                 action.sa_flags |= SA_ONSTACK;
+            }
 #endif
             err = sigaction(handler->signum, &action, &handler->previous);
-            if (!err)
-                handler->enabled = 1;
 #else
             handler->previous = signal(handler->signum,
                                        faulthandler_fatal_error);
-            if (handler->previous != SIG_ERR)
-                handler->enabled = 1;
+            err = (handler->previous == SIG_ERR);
 #endif
+            if (err) {
+                PyErr_SetFromErrno(PyExc_RuntimeError);
+                return NULL;
+            }
+            handler->enabled = 1;
         }
     }
     Py_RETURN_NONE;
@@ -370,48 +450,51 @@ faulthandler_alarm(int signum)
        the thread doesn't hold the GIL. Read the thread local storage (TLS)
        instead: call PyGILState_GetThisThreadState(). */
     tstate = PyGILState_GetThisThreadState();
-    if (tstate == NULL) {
-        /* unable to get the current thread, do nothing */
-        return;
-    }
 
     if (fault_alarm.all_threads) {
         const char* errmsg;
-
-        errmsg = _Py_DumpTracebackThreads(fault_alarm.fd, tstate);
+        errmsg = _Py_DumpTracebackThreads(fault_alarm.fd, fault_alarm.interp, tstate);
         ok = (errmsg == NULL);
     }
     else {
+        if (tstate == NULL) {
+            /* unable to get the current thread, do nothing */
+            return;
+        }
         _Py_DumpTraceback(fault_alarm.fd, tstate);
         ok = 1;
     }
 
     if (ok && fault_alarm.repeat)
-        alarm(fault_alarm.delay);
+        alarm(fault_alarm.timeout);
     else
         /* don't call Py_CLEAR() here because it may call _Py_Dealloc() which
            is not signal safe */
         alarm(0);
+
+    if (fault_alarm.exit)
+        _exit(1);
 }
 
 static PyObject*
-faulthandler_dump_traceback_later(PyObject *self,
+faulthandler_dump_tracebacks_later(PyObject *self,
                                   PyObject *args, PyObject *kwargs)
 {
-    static char *kwlist[] = {"delay", "repeat", "file", "all_threads", NULL};
-    int delay;
+    static char *kwlist[] = {"timeout", "repeat", "file", "all_threads", "exit", NULL};
+    int timeout;
     PyOS_sighandler_t previous;
     int repeat = 0;
     PyObject *file = NULL;
     int all_threads = 0;
+    int exit = 0;
     int fd;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
-        "i|iOi:dump_traceback_later", kwlist,
-        &delay, &repeat, &file, &all_threads))
+        "i|iOii:dump_tracebacks_later", kwlist,
+        &timeout, &repeat, &file, &all_threads, &exit))
         return NULL;
-    if (delay <= 0) {
-        PyErr_SetString(PyExc_ValueError, "delay must be greater than 0");
+    if (timeout <= 0) {
+        PyErr_SetString(PyExc_ValueError, "timeout must be greater than 0");
         return NULL;
     }
 
@@ -429,43 +512,31 @@ faulthandler_dump_traceback_later(PyObject *self,
     Py_INCREF(file);
     fault_alarm.file = file;
     fault_alarm.fd = fd;
-    fault_alarm.delay = delay;
+    fault_alarm.timeout = timeout;
     fault_alarm.repeat = repeat;
+    fault_alarm.exit = exit;
+    fault_alarm.interp = PyThreadState_Get()->interp;
     fault_alarm.all_threads = all_threads;
 
-    alarm(delay);
+    alarm(timeout);
 
     Py_RETURN_NONE;
 }
 
 static PyObject*
-faulthandler_cancel_dump_traceback_later_py(PyObject *self)
+faulthandler_cancel_dump_tracebacks_later_py(PyObject *self)
 {
     alarm(0);
     Py_CLEAR(fault_alarm.file);
     Py_RETURN_NONE;
 }
-#endif
+#endif /* FAULTHANDLER_LATER */
 
-static user_signal_t *
-faulthandler_user_find(int signum, unsigned int *p_index)
-{
-    unsigned int i;
-
-    for (i=0; i < user_signals.nsignal; i++) {
-        if (user_signals.signals[i].signum == signum) {
-            if (p_index != NULL)
-                *p_index = i;
-            return &user_signals.signals[i];
-        }
-    }
-    return NULL;
-}
-
+#ifdef FAULTHANDLER_USER
 /* Handler of user signals (e.g. SIGUSR1).
 
    Dump the traceback of the current thread, or of all threads if
-   fault_alarm.all_threads is true.
+   thread.all_threads is true.
 
    This function is signal safe and should only call signal safe functions. */
 
@@ -475,23 +546,47 @@ faulthandler_user(int signum)
     user_signal_t *user;
     PyThreadState *tstate;
 
-    user = faulthandler_user_find(signum, NULL);
-    if (user == NULL)
+    user = &user_signals[signum];
+    if (!user->enabled)
         return;
 
+#ifdef WITH_THREAD
     /* PyThreadState_Get() doesn't give the state of the current thread if
        the thread doesn't hold the GIL. Read the thread local storage (TLS)
        instead: call PyGILState_GetThisThreadState(). */
     tstate = PyGILState_GetThisThreadState();
-    if (tstate == NULL) {
-        /* unable to get the current thread, do nothing */
-        return;
-    }
+#else
+    tstate = PyThreadState_Get();
+#endif
 
     if (user->all_threads)
-        _Py_DumpTracebackThreads(user->fd, tstate);
-    else
+        _Py_DumpTracebackThreads(user->fd, user->interp, tstate);
+    else {
+        if (tstate == NULL)
+            return;
         _Py_DumpTraceback(user->fd, tstate);
+    }
+}
+
+static int
+check_signum(int signum)
+{
+    unsigned int i;
+
+    for (i=0; i < faulthandler_nsignals; i++) {
+        if (faulthandler_handlers[i].signum == signum) {
+            PyErr_Format(PyExc_RuntimeError,
+                         "signal %i cannot be registered, "
+                         "use enable() instead",
+                         signum);
+            return 0;
+        }
+    }
+    if (signum < 1 || NSIG <= signum) {
+        PyErr_SetString(PyExc_ValueError, "signal number out of range");
+        return 0;
+    }
+    return 1;
 }
 
 static PyObject*
@@ -503,148 +598,120 @@ faulthandler_register(PyObject *self,
     PyObject *file = NULL;
     int all_threads = 0;
     int fd;
-    unsigned int i;
-    user_signal_t *user, *signals;
-    size_t size;
+    user_signal_t *user;
     _Py_sighandler_t previous;
 #ifdef HAVE_SIGACTION
     struct sigaction action;
 #endif
-    int is_new, err;
+    PyThreadState *tstate;
+    int err;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
         "i|Oi:register", kwlist,
         &signum, &file, &all_threads))
         return NULL;
 
-    for (i=0; i < faulthandler_nsignals; i++) {
-        if (faulthandler_handlers[i].signum != signum)
-            continue;
-        PyErr_Format(PyExc_RuntimeError,
-                     "signal %i cannot be registered by register(): "
-                     "use enable() instead",
-                     signum);
+    if (!check_signum(signum))
         return NULL;
-    }
 
-    /* the following test comes from Python: Modules/signal.c */
-#ifdef MS_WINDOWS
-    /* Validate that sig_num is one of the allowable signals */
-    switch (signum) {
-    case SIGABRT: break;
-#ifdef SIGBREAK
-    /* Issue #10003: SIGBREAK is not documented as permitted, but works
-       and corresponds to CTRL_BREAK_EVENT. */
-    case SIGBREAK: break;
-#endif
-    case SIGFPE: break;
-    case SIGILL: break;
-    case SIGINT: break;
-    case SIGSEGV: break;
-    case SIGTERM: break;
-    default:
-        PyErr_SetString(PyExc_ValueError, "invalid signal value");
+    tstate = get_thread_state();
+    if (tstate == NULL)
         return NULL;
-    }
-#endif
 
     file = faulthandler_get_fileno(file, &fd);
     if (file == NULL)
         return NULL;
 
-    user = faulthandler_user_find(signum, NULL);
-    is_new = (user == NULL);
-    if (is_new) {
-        user_signals.nsignal++;
-        size = user_signals.nsignal * sizeof(user_signal_t);
-        if (size / user_signals.nsignal != sizeof(user_signal_t)) {
-            /* integer overflow */
+    if (user_signals == NULL) {
+        user_signals = calloc(NSIG, sizeof(user_signal_t));
+        if (user_signals == NULL)
             return PyErr_NoMemory();
-        }
-        signals = realloc(user_signals.signals, size);
-        if (signals == NULL)
-            return PyErr_NoMemory();
-        user_signals.signals = signals;
-        user = &signals[user_signals.nsignal - 1];
     }
+    user = &user_signals[signum];
 
+    if (!user->enabled) {
 #ifdef HAVE_SIGACTION
-    action.sa_handler = faulthandler_user;
-    sigemptyset(&action.sa_mask);
-    action.sa_flags = SA_ONSTACK;
-    err = sigaction(signum, &action, &previous);
-#else
-    previous = signal(signum, faulthandler_user);
-    err = (previous == SIG_ERR);
+        action.sa_handler = faulthandler_user;
+        sigemptyset(&action.sa_mask);
+        /* if the signal is received while the kernel is executing a system
+           call, try to restart the system call instead of interrupting it and
+           return EINTR */
+        action.sa_flags = SA_RESTART;
+#ifdef HAVE_SIGALTSTACK
+        if (stack.ss_sp != NULL) {
+            /* Call the signal handler on an alternate signal stack
+               provided by sigaltstack() */
+            action.sa_flags |= SA_ONSTACK;
+        }
 #endif
-    if (err) {
-        if (is_new)
-            user_signals.nsignal--;
-        PyErr_SetFromErrno(PyExc_OSError);
-        return NULL;
+        err = sigaction(signum, &action, &previous);
+#else
+        previous = signal(signum, faulthandler_user);
+        err = (previous == SIG_ERR);
+#endif
+        if (err) {
+            PyErr_SetFromErrno(PyExc_OSError);
+            return NULL;
+        }
     }
 
-    user->signum = signum;
-    if (!is_new)
-        Py_DECREF(user->file);
+    Py_XDECREF(user->file);
     Py_INCREF(file);
     user->file = file;
     user->fd = fd;
     user->all_threads = all_threads;
     user->previous = previous;
+    user->interp = tstate->interp;
+    user->enabled = 1;
 
     Py_RETURN_NONE;
 }
 
-static void
-faulthandler_unregister(user_signal_t *user)
+static int
+faulthandler_unregister(user_signal_t *user, int signum)
 {
+    if (!user->enabled)
+        return 0;
+    user->enabled = 0;
 #ifdef HAVE_SIGACTION
-    (void)sigaction(user->signum, &user->previous, NULL);
+    (void)sigaction(signum, &user->previous, NULL);
 #else
-    (void)signal(user->signum, user->previous);
+    (void)signal(signum, user->previous);
 #endif
+    user->fd = -1;
+    return 1;
 }
 
 static PyObject*
 faulthandler_unregister_py(PyObject *self, PyObject *args)
 {
     int signum;
-    unsigned int index;
     user_signal_t *user;
-    size_t size;
+    int change;
 
     if (!PyArg_ParseTuple(args, "i:unregister", &signum))
         return NULL;
 
-    user = faulthandler_user_find(signum, &index);
-    if (user == NULL) {
-        Py_INCREF(Py_False);
-        return Py_False;
-    }
+    if (!check_signum(signum))
+        return NULL;
 
-    faulthandler_unregister(user);
+    if (user_signals == NULL)
+        Py_RETURN_FALSE;
+
+    user = &user_signals[signum];
+    change = faulthandler_unregister(user, signum);
     Py_CLEAR(user->file);
-    if (index != user_signals.nsignal - 1) {
-        size = user_signals.nsignal - index - 1;
-        size *= sizeof(user_signals.signals[0]);
-        memmove(&user_signals.signals[index],
-                &user_signals.signals[index+1],
-                size);
-    }
-    user_signals.nsignal--;
-
-    Py_INCREF(Py_True);
-    return Py_True;
+    return PyBool_FromLong(change);
 }
+#endif   /* FAULTHANDLER_USER */
 
 
 static PyObject *
-faulthandler_sigsegv(PyObject *self, PyObject *args)
+faulthandler_read_null(PyObject *self, PyObject *args)
 {
     int *x = NULL, y;
     int release_gil = 0;
-    if (!PyArg_ParseTuple(args, "|i", &release_gil))
+    if (!PyArg_ParseTuple(args, "|i:_read_null", &release_gil))
         return NULL;
     if (release_gil) {
         Py_BEGIN_ALLOW_THREADS
@@ -657,29 +724,59 @@ faulthandler_sigsegv(PyObject *self, PyObject *args)
 }
 
 static PyObject *
+faulthandler_sigsegv(PyObject *self, PyObject *args)
+{
+#if defined(MS_WINDOWS)
+    /* For SIGSEGV, faulthandler_fatal_error() restores the previous signal
+       handler and then gives back the execution flow to the program (without
+       calling explicitly the previous error handler). In a normal case, the
+       SIGSEGV was raised by the kernel because of a fault, and so if the
+       program retries to execute the same instruction, the fault will be
+       raised again.
+
+       Here the fault is simulated by a fake SIGSEGV signal raised by the
+       application. We have to raise SIGSEGV at lease twice: once for
+       faulthandler_fatal_error(), and one more time for the previous signal
+       handler. */
+    while(1)
+        raise(SIGSEGV);
+#else
+    raise(SIGSEGV);
+#endif
+    Py_RETURN_NONE;
+}
+
+static PyObject *
 faulthandler_sigfpe(PyObject *self, PyObject *args)
 {
-    int x = 1, y = 0, z;
+    /* Do an integer division by zero: raise a SIGFPE on Intel CPU, but not on
+       PowerPC. Use volatile to disable compile-time optimizations. */
+    volatile int x = 1, y = 0, z;
     z = x / y;
-    return PyLong_FromLong(z);
+    /* if the division by zero didn't raise a SIGFPE, raise it manually */
+    raise(SIGFPE);
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+faulthandler_sigabrt(PyObject *self, PyObject *args)
+{
+#if _MSC_VER
+    /* If Python is compiled in debug mode with Visual Studio, abort() opens
+       a popup asking the user how to handle the assertion. Use raise(SIGABRT)
+       instead. */
+    raise(SIGABRT);
+#else
+    abort();
+#endif
+    Py_RETURN_NONE;
 }
 
 #ifdef SIGBUS
 static PyObject *
 faulthandler_sigbus(PyObject *self, PyObject *args)
 {
-    /* faulthandler_fatal_error() restores the previous signal handler and then
-       gives back the execution flow to the program. In a normal case, the
-       SIGBUS was raised by the kernel because of a fault, and so if the
-       program retries to execute the same instruction, the fault will be
-       raised again.
-
-       Here the fault is simulated by a fake SIGBUS signal raised by the
-       application. We have to raise SIGBUS at lease twice: once for
-       faulthandler_fatal_error(), and one more time for the previous signal
-       handler. */
-    while(1)
-        raise(SIGBUS);
+    raise(SIGBUS);
     Py_RETURN_NONE;
 }
 #endif
@@ -688,11 +785,60 @@ faulthandler_sigbus(PyObject *self, PyObject *args)
 static PyObject *
 faulthandler_sigill(PyObject *self, PyObject *args)
 {
-    /* see faulthandler_sigbus() comment explaining why while(1) is
-       used here */
-    while(1)
-        raise(SIGILL);
+    raise(SIGILL);
     Py_RETURN_NONE;
+}
+#endif
+
+static PyObject *
+faulthandler_fatal_error_py(PyObject *self, PyObject *args)
+{
+    char *message;
+#if PY_MAJOR_VERSION >= 3
+    if (!PyArg_ParseTuple(args, "y:fatal_error", &message))
+        return NULL;
+#else
+    if (!PyArg_ParseTuple(args, "s:fatal_error", &message))
+        return NULL;
+#endif
+    Py_FatalError(message);
+    Py_RETURN_NONE;
+}
+
+#if defined(HAVE_SIGALTSTACK) && defined(HAVE_SIGACTION)
+void*
+stack_overflow(void *min_sp, void *max_sp, size_t *depth)
+{
+    /* allocate 4096 bytes on the stack at each call */
+    unsigned char buffer[4096];
+    void *sp = &buffer;
+    *depth += 1;
+    if (sp < min_sp || max_sp < sp)
+        return sp;
+    buffer[0] = 1;
+    buffer[4095] = 0;
+    return stack_overflow(min_sp, max_sp, depth);
+}
+
+static PyObject *
+faulthandler_stack_overflow(PyObject *self)
+{
+    size_t depth, size;
+    void *sp = &depth, *stop;
+
+    depth = 0;
+    stop = stack_overflow(sp - STACK_OVERFLOW_MAX_SIZE,
+                          sp + STACK_OVERFLOW_MAX_SIZE,
+                          &depth);
+    if (sp < stop)
+        size = stop - sp;
+    else
+        size = sp - stop;
+    PyErr_Format(PyExc_RuntimeError,
+        "unable to raise a stack overflow (allocated %zu bytes "
+        "on the stack, %zu recursive calls)",
+        size, depth);
+    return NULL;
 }
 #endif
 
@@ -700,12 +846,19 @@ faulthandler_sigill(PyObject *self, PyObject *args)
 static int
 faulthandler_traverse(PyObject *module, visitproc visit, void *arg)
 {
-    unsigned int index;
+#ifdef FAULTHANDLER_USER
+    unsigned int signum;
+#endif
+
 #ifdef FAULTHANDLER_LATER
     Py_VISIT(fault_alarm.file);
 #endif
-    for (index=0; index < user_signals.nsignal; index++)
-        Py_VISIT(user_signals.signals[index].file);
+#ifdef FAULTHANDLER_USER
+    if (user_signals != NULL) {
+        for (signum=0; signum < NSIG; signum++)
+            Py_VISIT(user_signals[signum].file);
+    }
+#endif
     Py_VISIT(fatal_error.file);
     return 0;
 }
@@ -729,18 +882,20 @@ static PyMethodDef module_methods[] = {
                "dump the traceback of the current thread, or of all threads "
                "if all_threads is True, into file")},
 #ifdef FAULTHANDLER_LATER
-    {"dump_traceback_later",
-     (PyCFunction)faulthandler_dump_traceback_later, METH_VARARGS|METH_KEYWORDS,
-     PyDoc_STR("dump_traceback_later(delay, repeat=False, file=sys.stderr, all_threads=False): "
+    {"dump_tracebacks_later",
+     (PyCFunction)faulthandler_dump_tracebacks_later, METH_VARARGS|METH_KEYWORDS,
+     PyDoc_STR("dump_tracebacks_later(timeout, repeat=False, file=sys.stderr, all_threads=False, exit=False): "
                "dump the traceback of the current thread, or of all threads "
-               "if all_threads is True, in delay seconds, or each delay "
-               "seconds if repeat is True.")},
-    {"cancel_dump_traceback_later",
-     (PyCFunction)faulthandler_cancel_dump_traceback_later_py, METH_NOARGS,
-     PyDoc_STR("cancel_dump_traceback_later(): cancel the previous call "
-               "to dump_traceback_later().")},
+               "if all_threads is True, in timeout seconds, or each timeout "
+               "seconds if repeat is True. If exit is True, "
+               "call _exit(1) which is not safe.")},
+    {"cancel_dump_tracebacks_later",
+     (PyCFunction)faulthandler_cancel_dump_tracebacks_later_py, METH_NOARGS,
+     PyDoc_STR("cancel_dump_tracebacks_later(): cancel the previous call "
+               "to dump_tracebacks_later().")},
 #endif
 
+#ifdef FAULTHANDLER_USER
     {"register",
      (PyCFunction)faulthandler_register, METH_VARARGS|METH_KEYWORDS,
      PyDoc_STR("register(signum, file=sys.stderr, all_threads=False): "
@@ -751,18 +906,30 @@ static PyMethodDef module_methods[] = {
      faulthandler_unregister_py, METH_VARARGS|METH_KEYWORDS,
      PyDoc_STR("unregister(signum): unregister the handler of the signal "
                 "'signum' registered by register()")},
+#endif
 
+    {"_read_null", faulthandler_read_null, METH_VARARGS,
+     PyDoc_STR("_read_null(release_gil=False): read from NULL, raise "
+               "a SIGSEGV or SIGBUS signal depending on the platform")},
     {"_sigsegv", faulthandler_sigsegv, METH_VARARGS,
-     PyDoc_STR("sigsegv(release_gil=False): raise a SIGSEGV signal")},
+     PyDoc_STR("_sigsegv(): raise a SIGSEGV signal")},
+    {"_sigabrt", faulthandler_sigabrt, METH_VARARGS,
+     PyDoc_STR("_sigabrt(): raise a SIGABRT signal")},
     {"_sigfpe", (PyCFunction)faulthandler_sigfpe, METH_NOARGS,
-     PyDoc_STR("sigfpe(): raise a SIGFPE signal")},
+     PyDoc_STR("_sigfpe(): raise a SIGFPE signal")},
 #ifdef SIGBUS
     {"_sigbus", (PyCFunction)faulthandler_sigbus, METH_NOARGS,
-     PyDoc_STR("sigbus(): raise a SIGBUS signal")},
+     PyDoc_STR("_sigbus(): raise a SIGBUS signal")},
 #endif
 #ifdef SIGILL
     {"_sigill", (PyCFunction)faulthandler_sigill, METH_NOARGS,
-     PyDoc_STR("sigill(): raise a SIGILL signal")},
+     PyDoc_STR("_sigill(): raise a SIGILL signal")},
+#endif
+    {"_fatal_error", faulthandler_fatal_error_py, METH_VARARGS,
+     PyDoc_STR("_fatal_error(message): call Py_FatalError(message)")},
+#if defined(HAVE_SIGALTSTACK) && defined(HAVE_SIGACTION)
+    {"_stack_overflow", (PyCFunction)faulthandler_stack_overflow, METH_NOARGS,
+     PyDoc_STR("_stack_overflow(): recursive call to raise a stack overflow")},
 #endif
     {NULL, NULL} /* terminator */
 };
@@ -790,6 +957,9 @@ initfaulthandler(void)
 #endif
 {
     PyObject *m, *version;
+#ifdef HAVE_SIGALTSTACK
+    int err;
+#endif
 
 #if PY_MAJOR_VERSION >= 3
     m = PyModule_Create(&module_def);
@@ -808,22 +978,23 @@ initfaulthandler(void)
     /* Try to allocate an alternate stack for faulthandler() signal handler to
      * be able to allocate memory on the stack, even on a stack overflow. If it
      * fails, ignore the error. */
-    stack.ss_flags = SS_ONSTACK;
+    stack.ss_flags = 0;
     stack.ss_size = SIGSTKSZ;
     stack.ss_sp = PyMem_Malloc(stack.ss_size);
     if (stack.ss_sp != NULL) {
-        (void)sigaltstack(&stack, NULL);
+        err = sigaltstack(&stack, NULL);
+        if (err) {
+            PyMem_Free(stack.ss_sp);
+            stack.ss_sp = NULL;
+        }
     }
 #endif
 
     (void)Py_AtExit(faulthandler_unload);
 
-#if PY_MAJOR_VERSION >= 3
-    version = PyLong_FromLong(VERSION);
-#else
-    version = PyInt_FromLong(VERSION);
-#endif
+    version = Py_BuildValue("(ii)", VERSION >> 8, VERSION & 0xFF);
     PyModule_AddObject(m, "version", version);
+Py_DECREF(version);
 
 #if PY_MAJOR_VERSION >= 3
     return m;
@@ -833,22 +1004,28 @@ initfaulthandler(void)
 static void
 faulthandler_unload(void)
 {
-    unsigned int i;
+#ifdef FAULTHANDLER_USER
+    unsigned int signum;
+#endif
 
 #ifdef FAULTHANDLER_LATER
     alarm(0);
     /* Don't call Py_CLEAR(fault_alarm.file): this function is called too late,
        by Py_AtExit(). Destroy a Python object here raise strange errors. */
 #endif
-    for (i=0; i < user_signals.nsignal; i++) {
-        faulthandler_unregister(&user_signals.signals[i]);
-        /* Don't call Py_DECREF(user->file): this function is called too late,
-           by Py_AtExit(). Destroy a Python object here raise strange
-           errors. */
+#ifdef FAULTHANDLER_USER
+    /* user */
+    if (user_signals != NULL) {
+        for (signum=0; signum < NSIG; signum++) {
+            faulthandler_unregister(&user_signals[signum], signum);
+            /* Don't call Py_CLEAR(user->file): this function is called too late,
+               by Py_AtExit(). Destroy a Python object here raise strange
+               errors. */
+        }
+        free(user_signals);
+        user_signals = NULL;
     }
-    user_signals.nsignal = 0;
-    free(user_signals.signals);
-    user_signals.signals = NULL;
+#endif
 
     /* don't release file: faulthandler_unload_fatal_error()
        is called too late */

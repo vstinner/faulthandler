@@ -194,12 +194,13 @@ dump_traceback(int fd, PyThreadState *tstate, int write_header)
     PyFrameObject *frame;
     unsigned int depth;
 
+    if (write_header)
+        PUTS(fd, "Traceback (most recent call first):\n");
+
     frame = _PyThreadState_GetFrame(tstate);
     if (frame == NULL)
         return;
 
-    if (write_header)
-        PUTS(fd, "Traceback (most recent call first):\n");
     depth = 0;
     while (frame != NULL) {
         if (MAX_FRAME_DEPTH <= depth) {
@@ -255,16 +256,12 @@ write_thread_id(int fd, PyThreadState *tstate, int is_current)
    This function is signal safe. */
 
 const char*
-_Py_DumpTracebackThreads(int fd, PyThreadState *current_thread)
+_Py_DumpTracebackThreads(int fd,
+                         PyInterpreterState *interp,
+                         PyThreadState *current_thread)
 {
-    PyInterpreterState *interp;
     PyThreadState *tstate;
     unsigned int nthreads;
-
-    /* Get the current interpreter from the current thread */
-    interp = current_thread->interp;
-    if (interp == NULL)
-        return "unable to get the interpreter";
 
     tstate = PyInterpreterState_ThreadHead(interp);
     if (tstate == NULL)
