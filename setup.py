@@ -29,14 +29,7 @@ from os.path import join as path_join
 
 VERSION = "1.6"
 
-FILENAMES = (
-    'traceback.c',
-    'fatal_error.c',
-    'later.c',
-    'module.c',
-    'tests.c',
-    'user.c',
-)
+FILES = ['faulthandler.c', 'traceback.c']
 
 CLASSIFIERS = [
     'Development Status :: 5 - Production/Stable',
@@ -63,7 +56,7 @@ options = {
     'url': "https://github.com/haypo/faulthandler/wiki/",
     'author': 'Victor Stinner',
     'author_email': 'victor.stinner@haypocalc.com',
-    'ext_modules': [Extension('faulthandler', ['faulthandler.c'])],
+    'ext_modules': [Extension('faulthandler', FILES)],
     'classifiers': CLASSIFIERS,
 }
 
