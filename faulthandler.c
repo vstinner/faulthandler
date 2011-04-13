@@ -994,7 +994,6 @@ initfaulthandler(void)
 
     version = Py_BuildValue("(ii)", VERSION >> 8, VERSION & 0xFF);
     PyModule_AddObject(m, "version", version);
-Py_DECREF(version);
 
 #if PY_MAJOR_VERSION >= 3
     return m;
