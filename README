@@ -2,10 +2,10 @@
 Fault handler
 +++++++++++++
 
-Fault handler for SIGSEGV, SIGFPE, SIGBUS and SIGILL signals: display the
-Python traceback and restore the previous handler. Allocate an alternate stack
-for this handler, if sigaltstack() is available, to be able to allocate memory
-on the stack, even on stack overflow (not available on Windows).
+Fault handler for SIGSEGV, SIGFPE, SIGABRT, SIGBUS and SIGILL signals: display
+the Python traceback and restore the previous handler. Allocate an alternate
+stack for this handler, if sigaltstack() is available, to be able to allocate
+memory on the stack, even on stack overflow (not available on Windows).
 
 Import the module and call faulthandler.enable() to enable the fault handler.
 
@@ -122,10 +122,10 @@ Functions to test the fault handler:
  * _stack_overflow(): raise a stack overflow error. Not available on all
    platforms.
 
-sigbus() and sigill() are not available on all operation systems.
+register(), unregister(), sigbus() and sigill() are not available on all
+operation systems.
 
-The version can be read in the "version" attribute: use "version >> 8" to get
-the major version, and "version & 255" to get the minor version.
+faulthandler.version is the module version: (major, minor).
 
 
 Changelog
@@ -143,6 +143,16 @@ Major changes:
 
 Other changes:
 
+ * faulthandler.version is now a tuple
+ * Rename:
+
+   * dump_traceback_later() to dump_tracebacks_later()
+   * cancel_dump_traceback_later() to cancel_dump_tracebacks_later()
+   * sigsegv() to _sigsegv()
+   * sigfpe() to _sigfpe()
+   * sigbus() to _sigbus()
+   * sigill() to _sigill()
+
  * register() and unregister() are no more available on Windows. They were
    useless: only SIGSEGV, SIGABRT and SIGILL can be handled by the application,
    and these signals can only be handled by enable().
@@ -150,7 +160,7 @@ Other changes:
    functions
  * register() uses sigaction() SA_RESTART flag to try to not interrupt the
    current system call
- * The fault handler calls the previous signal handler: use sigaction()
+ * The fault handler calls the previous signal handler, using sigaction()
    SA_NODEFER flag to call it immediatly
  * enable() raises an OSError if it was not possible to register a signal
    handler
@@ -161,18 +171,10 @@ Other changes:
  * Implement m_traverse for Python 3 to help the garbage collector
  * Move code from faulthandler/*.c to faulthandler.c and traceback.c: the code
    is simpler and it was easier to integrate faulthandler into Python 3.3 using
-   one file (traceback.c already exists in Python)
+   one file (traceback.c already existed in Python)
  * register() uses a static list for all signals instead of reallocating memory
    each time a new signal is registered, because the list is shared with the
    signal handler which may be called anytime.
- * Rename:
-
-   * dump_traceback_later() to dump_tracebacks_later()
-   * cancel_dump_traceback_later() to cancel_dump_tracebacks_later()
-   * sigsegv() to _sigsegv()
-   * sigfpe() to _sigfpe()
-   * sigbus() to _sigbus()
-   * sigill() to _sigill()
 
 Version 1.5 (2011-03-24)
 ------------------------
