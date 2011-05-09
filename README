@@ -140,12 +140,12 @@ Major changes:
  * enable() handles also the SIGABRT signal
  * Add exit option to dump_tracebacks_later(): if True, exit the program
    on timeout after dumping the traceback
- * Change default value of the all_threads argument: dump all threads by
-   default because under some rare conditions, it is not possible to get
-   the current thread
 
 Other changes:
 
+ * Change default value of the all_threads argument: dump all threads by
+   default because under some rare conditions, it is not possible to get
+   the current thread
  * Save/restore errno in signal handlers
  * dump_tracebacks_later() always dump all threads: remove all_threads option
  * Add faulthandler.__version__ attribute (module version as a string)
