@@ -273,6 +273,7 @@ faulthandler._read_null()
         Raise an error if the output doesn't match the expected format.
         """
         code = """
+from __future__ import with_statement
 import faulthandler
 
 def funcB():
@@ -289,14 +290,14 @@ funcA()
 """.strip()
         code = code % (bool(filename), repr(filename))
         if filename:
-            lineno = 6
+            lineno = 7
         else:
-            lineno = 8
+            lineno = 9
         expected = [
             'Current thread XXX:',
             '  File "<string>", line %s in funcB' % lineno,
-            '  File "<string>", line 11 in funcA',
-            '  File "<string>", line 13 in <module>'
+            '  File "<string>", line 12 in funcA',
+            '  File "<string>", line 14 in <module>'
         ]
         trace, exitcode = self.get_output(code, filename)
         self.assertEqual(trace, expected)
@@ -316,6 +317,7 @@ funcA()
         Raise an error if the output doesn't match the expected format.
         """
         code = """
+from __future__ import with_statement
 import faulthandler
 from threading import Thread, Event
 import time
@@ -351,19 +353,19 @@ waiter.join()
         output, exitcode = self.get_output(code, filename)
         output = '\n'.join(output)
         if filename:
-            lineno = 8
+            lineno = 9
         else:
-            lineno = 10
+            lineno = 11
         regex = """
 ^Thread 0x[0-9a-f]+:
 (?:  File ".*threading.py", line [0-9]+ in [_a-z]+
-){1,3}  File "<string>", line 23 in run
+){1,3}  File "<string>", line 24 in run
   File ".*threading.py", line [0-9]+ in _?_bootstrap_inner
   File ".*threading.py", line [0-9]+ in _?_bootstrap
 
 Current thread XXX:
   File "<string>", line %s in dump
-  File "<string>", line 28 in <module>$
+  File "<string>", line 29 in <module>$
 """.strip()
         regex = regex % (lineno,)
         self.assertRegex(output, regex)
@@ -517,10 +519,10 @@ if file is not None:
         self.check_register(all_threads=True)
 
     if not hasattr(unittest.TestCase, 'assertRegex'):
-        # Copy/paste from Python 3.3
+        # Copy/paste from Python 3.3: just replace (str, bytes) by str
         def assertRegex(self, text, expected_regex, msg=None):
             """Fail the test unless the text matches the regular expression."""
-            if isinstance(expected_regex, (str, bytes)):
+            if isinstance(expected_regex, str):
                 assert expected_regex, "expected_regex must not be empty."
                 expected_regex = re.compile(expected_regex)
             if not expected_regex.search(text):
