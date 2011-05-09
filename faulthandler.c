@@ -755,7 +755,7 @@ faulthandler_sigfpe(PyObject *self, PyObject *args)
     z = x / y;
     /* if the division by zero didn't raise a SIGFPE, raise it manually */
     raise(SIGFPE);
-    Py_RETURN_NONE;
+    return PyLong_FromLong(z);
 }
 
 static PyObject *
