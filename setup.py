@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 
 # Todo list to prepare a release:
-#  - run python tests.py
+#  - run python2.5 tests.py
+#  - run python2.6 tests.py
+#  - run python2.7 tests.py
+#  - run python3.1 tests.py
+#  - run python3.2 tests.py
 #  - run tests on FreeBSD and Windows
 #  - set VERSION in faulthandler/module.c
 #  - set VERSION in setup.py
