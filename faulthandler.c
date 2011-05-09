@@ -511,7 +511,7 @@ faulthandler_dump_tracebacks_later(PyObject *self,
     size_t header_len;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
-        "i|iOii:dump_tracebacks_later", kwlist,
+        "i|iOi:dump_tracebacks_later", kwlist,
         &timeout, &repeat, &file, &exit))
         return NULL;
     if (timeout <= 0) {
