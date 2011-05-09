@@ -469,25 +469,25 @@ import signal
 def func(signum):
     os.kill(os.getpid(), signum)
 
-signum = {signum}
-unregister = {unregister}
-if {has_filename}:
-    file = open({filename}, "wb")
+signum = %s
+unregister = %s
+if %s:
+    file = open(%s, "wb")
 else:
     file = None
-faulthandler.register(signum, file=file, all_threads={all_threads})
+faulthandler.register(signum, file=file, all_threads=%s)
 if unregister:
     faulthandler.unregister(signum)
 func(signum)
 if file is not None:
     file.close()
 """.strip()
-        code = code.format(
-            filename=repr(filename),
-            has_filename=bool(filename),
-            all_threads=all_threads,
-            signum=signum,
-            unregister=unregister,
+        code = code % (
+            signum,
+            unregister,
+            bool(filename),
+            repr(filename),
+            all_threads,
         )
         trace, exitcode = self.get_output(code, filename)
         trace = '\n'.join(trace)
