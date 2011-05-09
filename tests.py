@@ -1,5 +1,6 @@
 from __future__ import with_statement
 from contextlib import contextmanager
+import datetime
 import faulthandler
 import os
 import re
@@ -8,6 +9,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
+
+try:
+    import threading
+    HAVE_THREADS = True
+except ImportError:
+    HAVE_THREADS = False
 
 TIMEOUT = 1
 
@@ -91,7 +98,7 @@ class FaultHandlerTests(unittest.TestCase):
         return output.splitlines(), exitcode
 
     def check_fatal_error(self, code, line_number, name_regex,
-                          filename=None, all_threads=False, other_regex=None):
+                          filename=None, all_threads=True, other_regex=None):
         """
         Check that the fault handler for fatal errors is enabled and check the
         traceback from the child process output.
@@ -223,15 +230,15 @@ faulthandler._read_null()
                 '(?:Segmentation fault|Bus error)',
                 filename=filename)
 
-    def test_enable_threads(self):
+    def test_enable_single_thread(self):
         self.check_fatal_error("""
 import faulthandler
-faulthandler.enable(all_threads=True)
+faulthandler.enable(all_threads=False)
 faulthandler._read_null()
 """.strip(),
             3,
             '(?:Segmentation fault|Bus error)',
-            all_threads=True)
+            all_threads=False)
 
     def test_disable(self):
         code = """
@@ -286,7 +293,7 @@ funcA()
         else:
             lineno = 8
         expected = [
-            'Traceback (most recent call first):',
+            'Current thread XXX:',
             '  File "<string>", line %s in funcB' % lineno,
             '  File "<string>", line 11 in funcA',
             '  File "<string>", line 13 in <module>'
@@ -302,6 +309,7 @@ funcA()
         with temporary_filename() as filename:
             self.check_dump_traceback(filename)
 
+    @skipIf(not HAVE_THREADS, 'need threads')
     def check_dump_traceback_threads(self, filename):
         """
         Call explicitly dump_traceback(all_threads=True) and check the output.
@@ -368,7 +376,7 @@ Current thread XXX:
         with temporary_filename() as filename:
             self.check_dump_traceback_threads(filename)
 
-    def _check_dump_tracebacks_later(self, all_threads, repeat, cancel, filename):
+    def _check_dump_tracebacks_later(self, repeat, cancel, filename):
         """
         Check how many times the traceback is written in timeout x 2.5 seconds,
         or timeout x 3.5 seconds if cancel is True: 1, 2 or 3 times depending
@@ -376,6 +384,7 @@ Current thread XXX:
 
         Raise an error if the output doesn't match the expect format.
         """
+        timeout_str = str(datetime.timedelta(seconds=TIMEOUT))
         code = """
 import faulthandler
 import time
@@ -388,7 +397,6 @@ def func(repeat, cancel, timeout):
     faulthandler.cancel_dump_tracebacks_later()
 
 timeout = %s
-all_threads = %s
 repeat = %s
 cancel = %s
 if %s:
@@ -396,12 +404,12 @@ if %s:
 else:
     file = None
 faulthandler.dump_tracebacks_later(timeout,
-    repeat=repeat, file=file, all_threads=all_threads)
+    repeat=repeat, file=file)
 func(repeat, cancel, timeout)
 if file is not None:
     file.close()
 """.strip()
-        code = code % (TIMEOUT, all_threads, repeat, cancel,
+        code = code % (TIMEOUT, repeat, cancel,
                        bool(filename), repr(filename))
         trace, exitcode = self.get_output(code, filename)
         trace = '\n'.join(trace)
@@ -411,12 +419,8 @@ if file is not None:
                 count = 2
             else:
                 count = 1
-            if all_threads:
-                header = 'Current thread XXX:\n'
-                #header = 'Thread 0x[0-9a-f]+:\n'
-            else:
-                header = 'Traceback \(most recent call first\):\n'
-            regex = expected_traceback(8, 21, header, count=count)
+            header = r'Timeout \(%s\)!\nCurrent thread XXX:\n' % timeout_str
+            regex = expected_traceback(8, 20, header, count=count)
             self.assertRegex(trace, regex)
         else:
             self.assertEqual(trace, '')
@@ -424,19 +428,16 @@ if file is not None:
 
     @skipIf(not hasattr(faulthandler, 'dump_tracebacks_later'),
             'need faulthandler.dump_tracebacks_later()')
-    def check_dump_tracebacks_later(self, all_threads=False, repeat=False, cancel=False,
+    def check_dump_tracebacks_later(self, repeat=False, cancel=False,
                                   file=False):
         if file:
             with temporary_filename() as filename:
-                self._check_dump_tracebacks_later(all_threads, repeat, cancel, filename)
+                self._check_dump_tracebacks_later(repeat, cancel, filename)
         else:
-            self._check_dump_tracebacks_later(all_threads, repeat, cancel, None)
+            self._check_dump_tracebacks_later(repeat, cancel, None)
 
     def test_dump_tracebacks_later(self):
         self.check_dump_tracebacks_later()
-
-    def test_dump_tracebacks_later_threads(self):
-        self.check_dump_tracebacks_later(all_threads=True)
 
     def test_dump_tracebacks_later_repeat(self):
         self.check_dump_tracebacks_later(repeat=True)

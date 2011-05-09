@@ -84,10 +84,9 @@ Dump the current traceback:
  * dump_traceback(file=sys.stderr, all_threads=False): dump traceback of the
    current thread, or of all threads if all_threads is True, into file
  * dump_tracebacks_later(timeout, repeat=False, file=sys.stderr,
-   all_threads=False): dump the traceback of the current thread, or of all
-   threads if all_threads is True, in timeout seconds, or each timeout seconds
-   if repeat is True. If the function is called twice, the new call replaces
-   previous parameters.
+   exit=False): dump the traceback of all threads in timeout seconds, or each
+   timeout seconds if repeat is True. If the function is called twice, the new
+   call replaces previous parameters. Exit immediatly if exit is True.
  * cancel_dump_tracebacks_later(): cancel the previous call to
    dump_tracebacks_later()
 
@@ -141,9 +140,14 @@ Major changes:
  * enable() handles also the SIGABRT signal
  * Add exit option to dump_tracebacks_later(): if True, exit the program
    on timeout after dumping the traceback
+ * Change default value of the all_threads argument: dump all threads by
+   default because under some rare conditions, it is not possible to get
+   the current thread
 
 Other changes:
 
+ * Save/restore errno in signal handlers
+ * dump_tracebacks_later() always dump all threads: remove all_threads option
  * Add faulthandler.__version__ attribute (module version as a string)
  * faulthandler.version is now a tuple
  * Rename:

@@ -70,7 +70,6 @@ static struct {
     int exit;
     char *header;
     size_t header_len;
-    int all_threads;
 } fault_alarm;
 #endif
 
@@ -208,7 +207,7 @@ faulthandler_dump_traceback_py(PyObject *self,
 {
     static char *kwlist[] = {"file", "all_threads", NULL};
     PyObject *file = NULL;
-    int all_threads = 0;
+    int all_threads = 1;
     PyThreadState *tstate;
     const char *errmsg;
     int fd;
@@ -260,6 +259,7 @@ faulthandler_fatal_error(int signum)
     unsigned int i;
     fault_handler_t *handler = NULL;
     PyThreadState *tstate;
+    int save_errno = errno;
 
     if (!fatal_error.enabled)
         return;
@@ -307,6 +307,7 @@ faulthandler_fatal_error(int signum)
             _Py_DumpTraceback(fd, tstate);
     }
 
+    errno = save_errno;
 #ifdef MS_WINDOWS
     if (signum == SIGSEGV) {
         /* don't call explictly the previous handler for SIGSEGV in this signal
@@ -326,7 +327,7 @@ faulthandler_enable(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     static char *kwlist[] = {"file", "all_threads", NULL};
     PyObject *file = NULL;
-    int all_threads = 0;
+    int all_threads = 1;
     unsigned int i;
     fault_handler_t *handler;
 #ifdef HAVE_SIGACTION
@@ -443,27 +444,19 @@ faulthandler_is_enabled(PyObject *self)
 static void
 faulthandler_alarm(int signum)
 {
-    int ok;
     PyThreadState *tstate;
+    const char* errmsg;
+    int ok;
+
+    write(fault_alarm.fd, fault_alarm.header, fault_alarm.header_len);
 
     /* PyThreadState_Get() doesn't give the state of the current thread if
        the thread doesn't hold the GIL. Read the thread local storage (TLS)
        instead: call PyGILState_GetThisThreadState(). */
     tstate = PyGILState_GetThisThreadState();
 
-    if (fault_alarm.all_threads) {
-        const char* errmsg;
-        errmsg = _Py_DumpTracebackThreads(fault_alarm.fd, fault_alarm.interp, tstate);
-        ok = (errmsg == NULL);
-    }
-    else {
-        if (tstate == NULL) {
-            /* unable to get the current thread, do nothing */
-            return;
-        }
-        _Py_DumpTraceback(fault_alarm.fd, tstate);
-        ok = 1;
-    }
+    errmsg = _Py_DumpTracebackThreads(fault_alarm.fd, fault_alarm.interp, tstate);
+    ok = (errmsg == NULL);
 
     if (ok && fault_alarm.repeat)
         alarm(fault_alarm.timeout);
@@ -476,22 +469,50 @@ faulthandler_alarm(int signum)
         _exit(1);
 }
 
+static char*
+format_timeout(double timeout)
+{
+    unsigned long us, sec, min, hour;
+    double intpart, fracpart;
+    char buffer[100];
+
+    fracpart = modf(timeout, &intpart);
+    sec = (unsigned long)intpart;
+    us = (unsigned long)(fracpart * 1e6);
+    min = sec / 60;
+    sec %= 60;
+    hour = min / 60;
+    min %= 60;
+
+    if (us != 0)
+        PyOS_snprintf(buffer, sizeof(buffer),
+                      "Timeout (%lu:%02lu:%02lu.%06lu)!\n",
+                      hour, min, sec, us);
+    else
+        PyOS_snprintf(buffer, sizeof(buffer),
+                      "Timeout (%lu:%02lu:%02lu)!\n",
+                      hour, min, sec);
+
+    return strdup(buffer);
+}
+
 static PyObject*
 faulthandler_dump_tracebacks_later(PyObject *self,
                                   PyObject *args, PyObject *kwargs)
 {
-    static char *kwlist[] = {"timeout", "repeat", "file", "all_threads", "exit", NULL};
+    static char *kwlist[] = {"timeout", "repeat", "file", "exit", NULL};
     int timeout;
     PyOS_sighandler_t previous;
     int repeat = 0;
     PyObject *file = NULL;
-    int all_threads = 0;
     int exit = 0;
     int fd;
+    char *header;
+    size_t header_len;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
         "i|iOii:dump_tracebacks_later", kwlist,
-        &timeout, &repeat, &file, &all_threads, &exit))
+        &timeout, &repeat, &file, &exit))
         return NULL;
     if (timeout <= 0) {
         PyErr_SetString(PyExc_ValueError, "timeout must be greater than 0");
@@ -502,9 +523,16 @@ faulthandler_dump_tracebacks_later(PyObject *self,
     if (file == NULL)
         return NULL;
 
+    /* format the timeout */
+    header = format_timeout(timeout);
+    if (header == NULL)
+        return PyErr_NoMemory();
+    header_len = strlen(header);
+
     previous = signal(SIGALRM, faulthandler_alarm);
     if (previous == SIG_ERR) {
         PyErr_SetString(PyExc_RuntimeError, "unable to set SIGALRM handler");
+        free(header);
         return NULL;
     }
 
@@ -516,7 +544,8 @@ faulthandler_dump_tracebacks_later(PyObject *self,
     fault_alarm.repeat = repeat;
     fault_alarm.exit = exit;
     fault_alarm.interp = PyThreadState_Get()->interp;
-    fault_alarm.all_threads = all_threads;
+    fault_alarm.header = header;
+    fault_alarm.header_len = header_len;
 
     alarm(timeout);
 
@@ -528,6 +557,8 @@ faulthandler_cancel_dump_tracebacks_later_py(PyObject *self)
 {
     alarm(0);
     Py_CLEAR(fault_alarm.file);
+    free(fault_alarm.header);
+    fault_alarm.header = NULL;
     Py_RETURN_NONE;
 }
 #endif /* FAULTHANDLER_LATER */
@@ -545,6 +576,7 @@ faulthandler_user(int signum)
 {
     user_signal_t *user;
     PyThreadState *tstate;
+    int save_errno = errno;
 
     user = &user_signals[signum];
     if (!user->enabled)
@@ -566,6 +598,7 @@ faulthandler_user(int signum)
             return;
         _Py_DumpTraceback(user->fd, tstate);
     }
+    errno = save_errno;
 }
 
 static int
@@ -596,7 +629,7 @@ faulthandler_register(PyObject *self,
     static char *kwlist[] = {"signum", "file", "all_threads", NULL};
     int signum;
     PyObject *file = NULL;
-    int all_threads = 0;
+    int all_threads = 1;
     int fd;
     user_signal_t *user;
     _Py_sighandler_t previous;
@@ -870,7 +903,7 @@ PyDoc_STRVAR(module_doc,
 static PyMethodDef module_methods[] = {
     {"enable",
      (PyCFunction)faulthandler_enable, METH_VARARGS|METH_KEYWORDS,
-     PyDoc_STR("enable(file=sys.stderr, all_threads=False): "
+     PyDoc_STR("enable(file=sys.stderr, all_threads=True): "
                "enable the fault handler")},
     {"disable", (PyCFunction)faulthandler_disable_py, METH_NOARGS,
      PyDoc_STR("disable(): disable the fault handler")},
@@ -878,27 +911,26 @@ static PyMethodDef module_methods[] = {
      PyDoc_STR("is_enabled()->bool: check if the handler is enabled")},
     {"dump_traceback",
      (PyCFunction)faulthandler_dump_traceback_py, METH_VARARGS|METH_KEYWORDS,
-     PyDoc_STR("dump_traceback(file=sys.stderr, all_threads=False): "
+     PyDoc_STR("dump_traceback(file=sys.stderr, all_threads=True): "
                "dump the traceback of the current thread, or of all threads "
                "if all_threads is True, into file")},
 #ifdef FAULTHANDLER_LATER
     {"dump_tracebacks_later",
      (PyCFunction)faulthandler_dump_tracebacks_later, METH_VARARGS|METH_KEYWORDS,
-     PyDoc_STR("dump_tracebacks_later(timeout, repeat=False, file=sys.stderr, all_threads=False, exit=False): "
-               "dump the traceback of the current thread, or of all threads "
-               "if all_threads is True, in timeout seconds, or each timeout "
-               "seconds if repeat is True. If exit is True, "
+     PyDoc_STR("dump_tracebacks_later(timeout, repeat=False, file=sys.stderrn, exit=False):\n"
+               "dump the traceback of all threads in timeout seconds,\n"
+               "or each timeout seconds if repeat is True. If exit is True, "
                "call _exit(1) which is not safe.")},
     {"cancel_dump_tracebacks_later",
      (PyCFunction)faulthandler_cancel_dump_tracebacks_later_py, METH_NOARGS,
-     PyDoc_STR("cancel_dump_tracebacks_later(): cancel the previous call "
+     PyDoc_STR("cancel_dump_tracebacks_later():\ncancel the previous call "
                "to dump_tracebacks_later().")},
 #endif
 
 #ifdef FAULTHANDLER_USER
     {"register",
      (PyCFunction)faulthandler_register, METH_VARARGS|METH_KEYWORDS,
-     PyDoc_STR("register(signum, file=sys.stderr, all_threads=False): "
+     PyDoc_STR("register(signum, file=sys.stderr, all_threads=True): "
                "register an handler for the signal 'signum': dump the "
                "traceback of the current thread, or of all threads if "
                "all_threads is True, into file")},
@@ -1029,7 +1061,12 @@ faulthandler_unload(void)
 #endif
 
 #ifdef FAULTHANDLER_LATER
+    /* later */
     alarm(0);
+    if (fault_alarm.header != NULL) {
+        free(fault_alarm.header);
+        fault_alarm.header = NULL;
+    }
     /* Don't call Py_CLEAR(fault_alarm.file): this function is called too late,
        by Py_AtExit(). Destroy a Python object here raise strange errors. */
 #endif
