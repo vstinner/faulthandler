@@ -993,10 +993,31 @@ initfaulthandler(void)
     (void)Py_AtExit(faulthandler_unload);
 
     version = Py_BuildValue("(ii)", VERSION >> 8, VERSION & 0xFF);
+    if (version == NULL)
+        goto error;
     PyModule_AddObject(m, "version", version);
 
 #if PY_MAJOR_VERSION >= 3
+    version = PyUnicode_FromFormat("%i.%i", VERSION >> 8, VERSION & 0xFF);
+#else
+    version = PyString_FromFormat("%i.%i", VERSION >> 8, VERSION & 0xFF);
+#endif
+    if (version == NULL)
+        goto error;
+    PyModule_AddObject(m, "__version__", version);
+
+#if PY_MAJOR_VERSION >= 3
     return m;
+#else
+    return;
+#endif
+
+error:
+#if PY_MAJOR_VERSION >= 3
+    Py_DECREF(m);
+    return NULL;
+#else
+    return;
 #endif
 }
 

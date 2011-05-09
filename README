@@ -125,7 +125,8 @@ Functions to test the fault handler:
 register(), unregister(), sigbus() and sigill() are not available on all
 operation systems.
 
-faulthandler.version is the module version: (major, minor).
+faulthandler.version_info is the module version as a tuple: (major, minor),
+faulthandler.__version__ is the module version a string (e.g. "2.0").
 
 
 Changelog
@@ -143,6 +144,7 @@ Major changes:
 
 Other changes:
 
+ * Add faulthandler.__version__ attribute (module version as a string)
  * faulthandler.version is now a tuple
  * Rename:
 
