@@ -175,7 +175,7 @@ Other changes:
  * Fix a reference leak in dump_tracebacks_later()
  * Fix register() if it called twice with the same signal
  * Implement m_traverse for Python 3 to help the garbage collector
- * Move code from faulthandler/*.c to faulthandler.c and traceback.c: the code
+ * Move code from faulthandler/\*.c to faulthandler.c and traceback.c: the code
    is simpler and it was easier to integrate faulthandler into Python 3.3 using
    one file (traceback.c already existed in Python)
  * register() uses a static list for all signals instead of reallocating memory
