@@ -131,8 +131,8 @@ faulthandler.__version__ is the module version a string (e.g. "2.0").
 Changelog
 =========
 
-Version 2.0 (under development)
--------------------------------
+Version 2.0 (2011-05-10)
+------------------------
 
 Major changes:
 

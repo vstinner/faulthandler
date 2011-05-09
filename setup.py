@@ -3,7 +3,7 @@
 # Todo list to prepare a release:
 #  - run ./run_tests.py
 #  - run tests on FreeBSD and Windows
-#  - set VERSION in faulthandler/module.c
+#  - set VERSION in faulthandler.c
 #  - set VERSION in setup.py
 #  - set release date in the ChangeLog (README file)
 #  - git commit -a
