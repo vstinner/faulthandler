@@ -26,6 +26,11 @@
 from __future__ import with_statement
 from distutils.core import setup, Extension
 from os.path import join as path_join
+import sys
+
+if sys.version_info >= (3,3):
+    print("ERROR: faulthandler is a builtin module since Python 3.3")
+    sys.exit(1)
 
 VERSION = "2.0"
 
