@@ -453,10 +453,12 @@ if file is not None:
     @skipIf(not hasattr(faulthandler, "register"),
             "need faulthandler.register")
     def check_register(self, filename=False, all_threads=False,
-                       unregister=False):
+                       unregister=False, chain=False):
         """
         Register a handler displaying the traceback on a user signal. Raise the
         signal and check the written traceback.
+
+        If chain is True, check that the previous signal handler is called.
 
         Raise an error if the output doesn't match the expected format.
         """
@@ -465,29 +467,49 @@ if file is not None:
 import faulthandler
 import os
 import signal
+import sys
 
 def func(signum):
     os.kill(os.getpid(), signum)
 
+def handler(signum, frame):
+    handler.called = True
+handler.called = False
+
+exitcode = 0
 signum = %s
+filename = %s
 unregister = %s
-if %s:
-    file = open(%s, "wb")
+all_threads = %s
+chain = %s
+if bool(filename):
+    file = open(filename, "wb")
 else:
     file = None
-faulthandler.register(signum, file=file, all_threads=%s)
+if chain:
+    signal.signal(signum, handler)
+faulthandler.register(signum, file=file,
+                      all_threads=all_threads, chain=chain)
 if unregister:
     faulthandler.unregister(signum)
 func(signum)
+if chain and not handler.called:
+    if file is not None:
+        output = file
+    else:
+        output = sys.stderr
+    output.write("Error: signal handler not called!\\n")
+    exitcode = 1
 if file is not None:
     file.close()
+sys.exit(exitcode)
 """.strip()
         code = code % (
             signum,
-            unregister,
-            bool(filename),
             repr(filename),
+            unregister,
             all_threads,
+            chain,
         )
         trace, exitcode = self.get_output(code, filename)
         trace = '\n'.join(trace)
@@ -496,7 +518,7 @@ if file is not None:
                 regex = 'Current thread XXX:\n'
             else:
                 regex = 'Traceback \(most recent call first\):\n'
-            regex = expected_traceback(6, 17, regex)
+            regex = expected_traceback(7, 29, regex)
             self.assertRegex(trace, regex)
         else:
             self.assertEqual(trace, '')
@@ -517,6 +539,9 @@ if file is not None:
 
     def test_register_threads(self):
         self.check_register(all_threads=True)
+
+    def test_register_chain(self):
+        self.check_register(chain=True)
 
     if not hasattr(unittest.TestCase, 'assertRegex'):
         # Copy/paste from Python 3.3: just replace (str, bytes) by str

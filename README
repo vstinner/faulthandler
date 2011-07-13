@@ -131,6 +131,13 @@ faulthandler.__version__ is the module version as a string (e.g. "2.0").
 Changelog
 =========
 
+Version 2.1 (under development)
+-------------------------------
+
+Major changes:
+
+ * Add an optional chain argument to faulthandler.register()
+
 Version 2.0 (2011-05-10)
 ------------------------
 

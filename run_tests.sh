@@ -1,5 +1,5 @@
 #!/bin/bash
-for VERSION in 2.5 2.6 2.7 3.1 3.2; do
+for VERSION in 2.5 2.6 3.1 3.2; do
     PYTHON=$(which "python$VERSION")
     if [ $? -ne 0 ]; then
         echo "skip python$VERSION (missing)"

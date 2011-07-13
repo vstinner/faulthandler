@@ -32,7 +32,7 @@ if sys.version_info >= (3,3):
     print("ERROR: faulthandler is a builtin module since Python 3.3")
     sys.exit(1)
 
-VERSION = "2.0"
+VERSION = "2.1"
 
 FILES = ['faulthandler.c', 'traceback.c']
 
