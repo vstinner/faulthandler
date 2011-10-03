@@ -260,6 +260,9 @@ Similar projects
 
 Python debuggers:
 
+ * minidumper is a C extension for writing "minidumps" for post-mortem analysis
+   of crashes in Python or its extensions:
+   https://bitbucket.org/briancurtin/minidumper/
  * tipper: write the traceback of the current thread into a file on SIGUSR1
    signal: http://pypi.python.org/pypi/tipper/
  * crier: write the traceback of the current thread into a file
