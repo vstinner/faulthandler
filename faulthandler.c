@@ -770,10 +770,13 @@ faulthandler_unregister_py(PyObject *self, PyObject *args)
 static PyObject *
 faulthandler_read_null(PyObject *self, PyObject *args)
 {
-    int *x = NULL, y;
+    volatile int *x;
+    volatile int y;
     int release_gil = 0;
     if (!PyArg_ParseTuple(args, "|i:_read_null", &release_gil))
         return NULL;
+
+    x = NULL;
     if (release_gil) {
         Py_BEGIN_ALLOW_THREADS
         y = *x;
@@ -790,7 +793,7 @@ faulthandler_sigsegv(PyObject *self, PyObject *args)
 #if defined(MS_WINDOWS)
     /* For SIGSEGV, faulthandler_fatal_error() restores the previous signal
        handler and then gives back the execution flow to the program (without
-       calling explicitly the previous error handler). In a normal case, the
+       explicitly calling the previous error handler). In a normal case, the
        SIGSEGV was raised by the kernel because of a fault, and so if the
        program retries to execute the same instruction, the fault will be
        raised again.
@@ -814,8 +817,11 @@ faulthandler_sigfpe(PyObject *self, PyObject *args)
        PowerPC. Use volatile to disable compile-time optimizations. */
     volatile int x = 1, y = 0, z;
     z = x / y;
-    /* if the division by zero didn't raise a SIGFPE, raise it manually */
+    /* If the division by zero didn't raise a SIGFPE (e.g. on PowerPC),
+       raise it manually. */
     raise(SIGFPE);
+    /* This line is never reached, but we pretend to make something with z
+       to silence a compiler warning. */
     return PyLong_FromLong(z);
 }
 
@@ -883,7 +889,7 @@ static PyObject *
 faulthandler_stack_overflow(PyObject *self)
 {
     size_t depth, size;
-    void *sp = &depth, *stop;
+    char *sp = (char *)&depth, *stop;
 
     depth = 0;
     stop = stack_overflow(sp - STACK_OVERFLOW_MAX_SIZE,
@@ -956,7 +962,7 @@ static PyMethodDef module_methods[] = {
 #ifdef FAULTHANDLER_USER
     {"register",
      (PyCFunction)faulthandler_register_py, METH_VARARGS|METH_KEYWORDS,
-     PyDoc_STR("register(signum, file=sys.stderr, all_threads=True): "
+     PyDoc_STR("register(signum, file=sys.stderr, all_threads=True, chain=False): "
                "register an handler for the signal 'signum': dump the "
                "traceback of the current thread, or of all threads if "
                "all_threads is True, into file")},
@@ -989,7 +995,7 @@ static PyMethodDef module_methods[] = {
     {"_stack_overflow", (PyCFunction)faulthandler_stack_overflow, METH_NOARGS,
      PyDoc_STR("_stack_overflow(): recursive call to raise a stack overflow")},
 #endif
-    {NULL, NULL} /* terminator */
+    {NULL, NULL}  /* sentinel */
 };
 
 #if PY_MAJOR_VERSION >= 3

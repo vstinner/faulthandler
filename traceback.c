@@ -263,6 +263,7 @@ _Py_DumpTracebackThreads(int fd,
     PyThreadState *tstate;
     unsigned int nthreads;
 
+    /* Get the current interpreter from the current thread */
     tstate = PyInterpreterState_ThreadHead(interp);
     if (tstate == NULL)
         return "unable to get the thread head state";

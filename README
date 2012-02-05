@@ -99,9 +99,10 @@ file. Use disable() and cancel_dump_tracebacks_later() to clear this reference.
 
 Dump the traceback on an user signal:
 
- * register(signum, file=sys.stderr, all_threads=False): register an handler
-   for the signal 'signum': dump the traceback of the current thread, or of all
-   threads if all_threads is True, into file". Not available on Windows.
+ * register(signum, file=sys.stderr, all_threads=False, chain=False): register
+   an handler for the signal 'signum': dump the traceback of the current
+   thread, or of all threads if all_threads is True, into file". Call the
+   previous handler if chain is ``True``. Not available on Windows.
  * unregister(signum): unregister the handler of the signal 'signum' registered
    by register(). Not available on Windows.
 
@@ -137,6 +138,11 @@ Version 2.1 (under development)
 Major changes:
 
  * Add an optional chain argument to faulthandler.register()
+
+Minor changes:
+
+ * Fix faulthandler._sigsegv() for Clang 3.0
+ * Fix compilation on Visual Studio
 
 Version 2.0 (2011-05-10)
 ------------------------
