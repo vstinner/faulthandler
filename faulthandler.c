@@ -8,7 +8,7 @@
 #include "pythread.h"
 #include <signal.h>
 
-#define VERSION 0x201
+#define VERSION 0x202
 
 /* Allocate at maximum 100 MB of the stack to raise the stack overflow */
 #define STACK_OVERFLOW_MAX_SIZE (100*1024*1024)
@@ -507,6 +507,7 @@ faulthandler_dump_tracebacks_later(PyObject *self,
     int repeat = 0;
     PyObject *file = NULL;
     int exit = 0;
+    PyThreadState *tstate;
     int fd;
     char *header;
     size_t header_len;
@@ -519,6 +520,10 @@ faulthandler_dump_tracebacks_later(PyObject *self,
         PyErr_SetString(PyExc_ValueError, "timeout must be greater than 0");
         return NULL;
     }
+
+    tstate = get_thread_state();
+    if (tstate == NULL)
+        return NULL;
 
     file = faulthandler_get_fileno(file, &fd);
     if (file == NULL)
@@ -543,8 +548,8 @@ faulthandler_dump_tracebacks_later(PyObject *self,
     fault_alarm.fd = fd;
     fault_alarm.timeout = timeout;
     fault_alarm.repeat = repeat;
+    fault_alarm.interp = tstate->interp;
     fault_alarm.exit = exit;
-    fault_alarm.interp = PyThreadState_Get()->interp;
     fault_alarm.header = header;
     fault_alarm.header_len = header_len;
 
@@ -628,24 +633,28 @@ faulthandler_user(int signum)
     if (user->all_threads)
         _Py_DumpTracebackThreads(user->fd, user->interp, tstate);
     else {
-        if (tstate == NULL)
-            return;
-        _Py_DumpTraceback(user->fd, tstate);
+        if (tstate != NULL)
+            _Py_DumpTraceback(user->fd, tstate);
     }
 #ifdef HAVE_SIGACTION
     if (user->chain) {
         (void)sigaction(signum, &user->previous, NULL);
+        errno = save_errno;
+
         /* call the previous signal handler */
         raise(signum);
+
+        save_errno = errno;
         (void)faulthandler_register(signum, user->chain, NULL);
+        errno = save_errno;
     }
 #else
     if (user->chain) {
+        errno = save_errno;
         /* call the previous signal handler */
         user->previous(signum);
     }
 #endif
-    errno = save_errno;
 }
 
 static int
