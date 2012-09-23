@@ -69,7 +69,7 @@ faulthandler module API
 There are 4 different ways to display the Python traceback:
 
  * enable(): on a crash
- * dump_tracebacks_later(): after a timeout (useful if your program hangs)
+ * dump_traceback_later(): after a timeout (useful if your program hangs)
  * register(): by sending a signal (eg. SIGUSR1). It doesn't work on Windows.
  * dump_traceback(): explicitly
 
@@ -83,19 +83,19 @@ Dump the current traceback:
 
  * dump_traceback(file=sys.stderr, all_threads=False): dump traceback of the
    current thread, or of all threads if all_threads is True, into file
- * dump_tracebacks_later(timeout, repeat=False, file=sys.stderr,
+ * dump_traceback_later(timeout, repeat=False, file=sys.stderr,
    exit=False): dump the traceback of all threads in timeout seconds, or each
    timeout seconds if repeat is True. If the function is called twice, the new
    call replaces previous parameters. Exit immediatly if exit is True.
- * cancel_dump_tracebacks_later(): cancel the previous call to
-   dump_tracebacks_later()
+ * cancel_dump_traceback_later(): cancel the previous call to
+   dump_traceback_later()
 
-dump_tracebacks_later() is implemented using the SIGALRM signal and the alarm()
+dump_traceback_later() is implemented using the SIGALRM signal and the alarm()
 function: if the signal handler is called during a system call, the system call
 is interrupted (return EINTR). It it not available on Windows.
 
-enable() and dump_tracebacks_later() keep an internal reference to the output
-file. Use disable() and cancel_dump_tracebacks_later() to clear this reference.
+enable() and dump_traceback_later() keep an internal reference to the output
+file. Use disable() and cancel_dump_traceback_later() to clear this reference.
 
 Dump the traceback on an user signal:
 
@@ -135,6 +135,7 @@ Changelog
 Version 2.2 (work in progress)
 ------------------------------
 
+ * Rename dump_tracebacks_later() to dump_traceback_later()
  * Fix handling of errno variable in the handler of user signals
  * Fix the handler of user signals: chain the previous signal
    handler even if getting the current thread state failed
@@ -158,7 +159,7 @@ Major changes:
 
  * faulthandler is now part of Python 3.3
  * enable() handles also the SIGABRT signal
- * Add exit option to dump_tracebacks_later(): if True, exit the program
+ * Add exit option to dump_traceback_later(): if True, exit the program
    on timeout after dumping the traceback
 
 Other changes:
@@ -167,13 +168,13 @@ Other changes:
    default because under some rare conditions, it is not possible to get
    the current thread
  * Save/restore errno in signal handlers
- * dump_tracebacks_later() always dump all threads: remove all_threads option
+ * dump_traceback_later() always dump all threads: remove all_threads option
  * Add faulthandler.__version__ attribute (module version as a string)
  * faulthandler.version is now a tuple
  * Rename:
 
-   * dump_traceback_later() to dump_tracebacks_later()
-   * cancel_dump_traceback_later() to cancel_dump_tracebacks_later()
+   * dump_traceback_later() to dump_traceback_later()
+   * cancel_dump_traceback_later() to cancel_dump_traceback_later()
    * sigsegv() to _sigsegv()
    * sigfpe() to _sigfpe()
    * sigbus() to _sigbus()
@@ -192,7 +193,7 @@ Other changes:
    handler
  * Set module size to 0, instead of -1, to be able to unload the module with
    Python 3
- * Fix a reference leak in dump_tracebacks_later()
+ * Fix a reference leak in dump_traceback_later()
  * Fix register() if it called twice with the same signal
  * Implement m_traverse for Python 3 to help the garbage collector
  * Move code from faulthandler/\*.c to faulthandler.c and traceback.c: the code

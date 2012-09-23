@@ -378,7 +378,7 @@ Current thread XXX:
         with temporary_filename() as filename:
             self.check_dump_traceback_threads(filename)
 
-    def _check_dump_tracebacks_later(self, repeat, cancel, filename):
+    def _check_dump_traceback_later(self, repeat, cancel, filename):
         """
         Check how many times the traceback is written in timeout x 2.5 seconds,
         or timeout x 3.5 seconds if cancel is True: 1, 2 or 3 times depending
@@ -393,10 +393,10 @@ import time
 
 def func(repeat, cancel, timeout):
     if cancel:
-        faulthandler.cancel_dump_tracebacks_later()
+        faulthandler.cancel_dump_traceback_later()
     for loop in range(2):
         time.sleep(timeout * 1.25)
-    faulthandler.cancel_dump_tracebacks_later()
+    faulthandler.cancel_dump_traceback_later()
 
 timeout = %s
 repeat = %s
@@ -405,7 +405,7 @@ if %s:
     file = open(%s, "wb")
 else:
     file = None
-faulthandler.dump_tracebacks_later(timeout,
+faulthandler.dump_traceback_later(timeout,
     repeat=repeat, file=file)
 func(repeat, cancel, timeout)
 if file is not None:
@@ -428,27 +428,27 @@ if file is not None:
             self.assertEqual(trace, '')
         self.assertEqual(exitcode, 0)
 
-    @skipIf(not hasattr(faulthandler, 'dump_tracebacks_later'),
-            'need faulthandler.dump_tracebacks_later()')
-    def check_dump_tracebacks_later(self, repeat=False, cancel=False,
+    @skipIf(not hasattr(faulthandler, 'dump_traceback_later'),
+            'need faulthandler.dump_traceback_later()')
+    def check_dump_traceback_later(self, repeat=False, cancel=False,
                                   file=False):
         if file:
             with temporary_filename() as filename:
-                self._check_dump_tracebacks_later(repeat, cancel, filename)
+                self._check_dump_traceback_later(repeat, cancel, filename)
         else:
-            self._check_dump_tracebacks_later(repeat, cancel, None)
+            self._check_dump_traceback_later(repeat, cancel, None)
 
-    def test_dump_tracebacks_later(self):
-        self.check_dump_tracebacks_later()
+    def test_dump_traceback_later(self):
+        self.check_dump_traceback_later()
 
-    def test_dump_tracebacks_later_repeat(self):
-        self.check_dump_tracebacks_later(repeat=True)
+    def test_dump_traceback_later_repeat(self):
+        self.check_dump_traceback_later(repeat=True)
 
-    def test_dump_tracebacks_later_cancel(self):
-        self.check_dump_tracebacks_later(cancel=True)
+    def test_dump_traceback_later_cancel(self):
+        self.check_dump_traceback_later(cancel=True)
 
-    def test_dump_tracebacks_later_file(self):
-        self.check_dump_tracebacks_later(file=True)
+    def test_dump_traceback_later_file(self):
+        self.check_dump_traceback_later(file=True)
 
     @skipIf(not hasattr(faulthandler, "register"),
             "need faulthandler.register")

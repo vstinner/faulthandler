@@ -498,7 +498,7 @@ format_timeout(double timeout)
 }
 
 static PyObject*
-faulthandler_dump_tracebacks_later(PyObject *self,
+faulthandler_dump_traceback_later(PyObject *self,
                                   PyObject *args, PyObject *kwargs)
 {
     static char *kwlist[] = {"timeout", "repeat", "file", "exit", NULL};
@@ -513,7 +513,7 @@ faulthandler_dump_tracebacks_later(PyObject *self,
     size_t header_len;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
-        "i|iOi:dump_tracebacks_later", kwlist,
+        "i|iOi:dump_traceback_later", kwlist,
         &timeout, &repeat, &file, &exit))
         return NULL;
     if (timeout <= 0) {
@@ -559,7 +559,7 @@ faulthandler_dump_tracebacks_later(PyObject *self,
 }
 
 static PyObject*
-faulthandler_cancel_dump_tracebacks_later_py(PyObject *self)
+faulthandler_cancel_dump_traceback_later_py(PyObject *self)
 {
     alarm(0);
     Py_CLEAR(fault_alarm.file);
@@ -956,16 +956,16 @@ static PyMethodDef module_methods[] = {
                "dump the traceback of the current thread, or of all threads "
                "if all_threads is True, into file")},
 #ifdef FAULTHANDLER_LATER
-    {"dump_tracebacks_later",
-     (PyCFunction)faulthandler_dump_tracebacks_later, METH_VARARGS|METH_KEYWORDS,
-     PyDoc_STR("dump_tracebacks_later(timeout, repeat=False, file=sys.stderrn, exit=False):\n"
+    {"dump_traceback_later",
+     (PyCFunction)faulthandler_dump_traceback_later, METH_VARARGS|METH_KEYWORDS,
+     PyDoc_STR("dump_traceback_later(timeout, repeat=False, file=sys.stderrn, exit=False):\n"
                "dump the traceback of all threads in timeout seconds,\n"
                "or each timeout seconds if repeat is True. If exit is True, "
                "call _exit(1) which is not safe.")},
-    {"cancel_dump_tracebacks_later",
-     (PyCFunction)faulthandler_cancel_dump_tracebacks_later_py, METH_NOARGS,
-     PyDoc_STR("cancel_dump_tracebacks_later():\ncancel the previous call "
-               "to dump_tracebacks_later().")},
+    {"cancel_dump_traceback_later",
+     (PyCFunction)faulthandler_cancel_dump_traceback_later_py, METH_NOARGS,
+     PyDoc_STR("cancel_dump_traceback_later():\ncancel the previous call "
+               "to dump_traceback_later().")},
 #endif
 
 #ifdef FAULTHANDLER_USER
