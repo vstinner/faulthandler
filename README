@@ -132,10 +132,11 @@ faulthandler.__version__ is the module version as a string (e.g. "2.0").
 Changelog
 =========
 
-Version 2.2 (work in progress)
-------------------------------
+Version 2.2 (2013-03-19)
+------------------------
 
- * Rename dump_tracebacks_later() to dump_traceback_later()
+ * Rename dump_tracebacks_later() to dump_traceback_later():
+   use the same API than the faulthandler module of Python 3.3
  * Fix handling of errno variable in the handler of user signals
  * Fix the handler of user signals: chain the previous signal
    handler even if getting the current thread state failed
