@@ -132,8 +132,8 @@ faulthandler.__version__ is the module version as a string (e.g. "2.0").
 Changelog
 =========
 
-Version 2.3
------------
+Version 2.3 (2013-12-17)
+------------------------
 
  * faulthandler.register() now keeps the previous signal handler when the
    function is called twice, so faulthandler.unregister() restores correctly

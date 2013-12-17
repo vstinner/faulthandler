@@ -8,7 +8,7 @@
 #include "pythread.h"
 #include <signal.h>
 
-#define VERSION 0x202
+#define VERSION 0x203
 
 /* Allocate at maximum 100 MB of the stack to raise the stack overflow */
 #define STACK_OVERFLOW_MAX_SIZE (100*1024*1024)
