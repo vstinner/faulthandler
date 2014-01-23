@@ -60,7 +60,7 @@ options = {
     'long_description': long_description,
     'url': "https://github.com/haypo/faulthandler/wiki/",
     'author': 'Victor Stinner',
-    'author_email': 'victor.stinner@haypocalc.com',
+    'author_email': 'victor.stinner@gmail.com',
     'ext_modules': [Extension('faulthandler', FILES)],
     'classifiers': CLASSIFIERS,
 }
