@@ -50,8 +50,8 @@ Example of a segmentation fault on Linux: ::
 Installation
 ============
 
-Install Trollius on Windows using pip
--------------------------------------
+Install faulthandler on Windows using pip
+-----------------------------------------
 
 Procedure to install faulthandler on Windows:
 
