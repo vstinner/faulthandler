@@ -11,9 +11,13 @@
 #  - git push
 #  - git push --tags
 #  - python setup.py register sdist upload
-#  - python2.6 setup.py bdist_wininst upload
-#  - python2.7 setup.py bdist_wininst upload
-#  - python3.1 setup.py bdist_wininst upload
+#  - Build 32-bi and 64-bit wheel packages on Windows:
+#
+#    - python2.6 setup.py bdist_wheel upload
+#    - python2.7 setup.py bdist_wheel upload
+#    - python3.1 setup.py bdist_wheel upload
+#    - python3.2 setup.py bdist_wheel upload
+#
 #  - update the website
 #
 # After the release:
@@ -24,7 +28,11 @@
 #  - git push
 
 from __future__ import with_statement
-from distutils.core import setup, Extension
+try:
+    # setuptools supports bdist_wheel
+    from setuptools import setup, Extension
+except ImportError:
+    from distutils.core import setup, Extension
 from os.path import join as path_join
 import sys
 
