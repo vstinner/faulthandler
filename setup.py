@@ -5,6 +5,7 @@
 #  - run tests on FreeBSD and Windows
 #  - set VERSION in faulthandler.c
 #  - set VERSION in setup.py
+#  - set VERSION in doc/conf.py
 #  - set release date in the ChangeLog (README file)
 #  - git commit -a
 #  - git tag -a faulthandler-x.y -m "tag version x.y"
