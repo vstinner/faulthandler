@@ -2,6 +2,11 @@
 Fault handler
 +++++++++++++
 
+.. image:: llama.jpg
+   :alt: Llama
+   :align: right
+   :target: http://www.flickr.com/photos/haypo/7199652438/
+
 Fault handler for SIGSEGV, SIGFPE, SIGABRT, SIGBUS and SIGILL signals: display
 the Python traceback and restore the previous handler. Allocate an alternate
 stack for this handler, if sigaltstack() is available, to be able to allocate
