@@ -24,12 +24,16 @@ see the traceback, or pass a file to faulthandler.enable().
 faulthandler is implemented in C using signal handlers to be able to dump a
 traceback on a crash or when Python is blocked (eg. deadlock).
 
-* `faulthandler website <http://faulthandler.readthedocs.org/>`_ (this
-  page)
-* `faulthandler project at github <https://github.com/haypo/faulthandler/>`_:
-  source code, bug tracker
+* `faulthandler website <http://faulthandler.readthedocs.org/>`_
+  (this page)
+* `faulthandler project at github
+  <https://github.com/haypo/faulthandler/>`_: source code, bug tracker
+* `faulthandler at Python Cheeshop (PyPI)
+  <http://pypi.python.org/pypi/faulthandler/>`_
 * faulthandler is part of Python since Python 3.3:
   `faulthandler module <http://docs.python.org/dev/library/faulthandler.html>`_
+* Article: `New faulthandler module in Python 3.3 helps debugging
+  <http://blog.python.org/2011/05/new-faulthandler-module-in-python-33.html>`_
 
 
 Example
@@ -115,6 +119,9 @@ development software for Windows.
 
 Install from source code
 ------------------------
+
+Download the latest tarball from the `Python Cheeseshop (PyPI)
+<http://pypi.python.org/pypi/faulthandler/>`_.
 
 To install faulthandler module, type the following command: ::
 
