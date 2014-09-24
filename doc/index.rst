@@ -218,6 +218,8 @@ Version 2.4
   AttributeError("'NoneType' object has no attribute 'fileno'").
 * Python issue #19306: Add extra hints to faulthandler stack dumps that they
   are upside down.
+* Python issue #15463: the faulthandler module truncates strings to 500
+  characters, instead of 100, to be able to display long file paths.
 
 
 Version 2.3 (2013-12-17)

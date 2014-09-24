@@ -1,7 +1,7 @@
 #include "Python.h"
 #include <frameobject.h>
 
-#define MAX_STRING_LENGTH 100
+#define MAX_STRING_LENGTH 500
 #define MAX_FRAME_DEPTH 100
 #define MAX_NTHREADS 100
 
