@@ -24,12 +24,74 @@ Py_REF_DEBUG = hasattr(sys, 'gettotalrefcount')
 try:
     from test.support import SuppressCrashReport
 except ImportError:
-    @contextmanager
-    def SuppressCrashReport():
-        try:
-            yield
-        finally:
-            pass
+    try:
+        import resource
+    except ImportError:
+        resource = None
+
+    class SuppressCrashReport:
+        """Try to prevent a crash report from popping up.
+
+        On Windows, don't display the Windows Error Reporting dialog.  On UNIX,
+        disable the creation of coredump file.
+        """
+        old_value = None
+
+        def __enter__(self):
+            """On Windows, disable Windows Error Reporting dialogs using
+            SetErrorMode.
+
+            On UNIX, try to save the previous core file size limit, then set
+            soft limit to 0.
+            """
+            if sys.platform.startswith('win'):
+                # see http://msdn.microsoft.com/en-us/library/windows/desktop/ms680621.aspx
+                # GetErrorMode is not available on Windows XP and Windows Server 2003,
+                # but SetErrorMode returns the previous value, so we can use that
+                import ctypes
+                self._k32 = ctypes.windll.kernel32
+                SEM_NOGPFAULTERRORBOX = 0x02
+                self.old_value = self._k32.SetErrorMode(SEM_NOGPFAULTERRORBOX)
+                self._k32.SetErrorMode(self.old_value | SEM_NOGPFAULTERRORBOX)
+            else:
+                if resource is not None:
+                    try:
+                        self.old_value = resource.getrlimit(resource.RLIMIT_CORE)
+                        resource.setrlimit(resource.RLIMIT_CORE,
+                                           (0, self.old_value[1]))
+                    except (ValueError, OSError):
+                        pass
+                if sys.platform == 'darwin':
+                    # Check if the 'Crash Reporter' on OSX was configured
+                    # in 'Developer' mode and warn that it will get triggered
+                    # when it is.
+                    #
+                    # This assumes that this context manager is used in tests
+                    # that might trigger the next manager.
+                    value = subprocess.Popen(['/usr/bin/defaults', 'read',
+                            'com.apple.CrashReporter', 'DialogType'],
+                            stdout=subprocess.PIPE).communicate()[0]
+                    if value.strip() == b'developer':
+                        sys.stdout.write("this test triggers the Crash "
+                                         "Reporter, that is intentional")
+                        sys.stdout.flush()
+
+            return self
+
+        def __exit__(self, *ignore_exc):
+            """Restore Windows ErrorMode or core file behavior to initial value."""
+            if self.old_value is None:
+                return
+
+            if sys.platform.startswith('win'):
+                self._k32.SetErrorMode(self.old_value)
+            else:
+                if resource is not None:
+                    try:
+                        resource.setrlimit(resource.RLIMIT_CORE, self.old_value)
+                    except (ValueError, OSError):
+                        pass
+
 
 try:
     skipIf = unittest.skipIf
