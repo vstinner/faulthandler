@@ -851,23 +851,23 @@ faulthandler_sigabrt(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-#ifdef SIGBUS
 static PyObject *
-faulthandler_sigbus(PyObject *self, PyObject *args)
+faulthandler_raise_signal(PyObject *self, PyObject *args)
 {
-    raise(SIGBUS);
-    Py_RETURN_NONE;
-}
-#endif
+    int signum, err;
 
-#ifdef SIGILL
-static PyObject *
-faulthandler_sigill(PyObject *self, PyObject *args)
-{
-    raise(SIGILL);
+    if (PyArg_ParseTuple(args, "i:raise_signal", &signum) < 0)
+        return NULL;
+
+    err = raise(signum);
+    if (err)
+        return PyErr_SetFromErrno(PyExc_OSError);
+
+    if (PyErr_CheckSignals() < 0)
+        return NULL;
+
     Py_RETURN_NONE;
 }
-#endif
 
 static PyObject *
 faulthandler_fatal_error_py(PyObject *self, PyObject *args)
@@ -995,14 +995,8 @@ static PyMethodDef module_methods[] = {
      PyDoc_STR("_sigabrt(): raise a SIGABRT signal")},
     {"_sigfpe", (PyCFunction)faulthandler_sigfpe, METH_NOARGS,
      PyDoc_STR("_sigfpe(): raise a SIGFPE signal")},
-#ifdef SIGBUS
-    {"_sigbus", (PyCFunction)faulthandler_sigbus, METH_NOARGS,
-     PyDoc_STR("_sigbus(): raise a SIGBUS signal")},
-#endif
-#ifdef SIGILL
-    {"_sigill", (PyCFunction)faulthandler_sigill, METH_NOARGS,
-     PyDoc_STR("_sigill(): raise a SIGILL signal")},
-#endif
+    {"_raise_signal", (PyCFunction)faulthandler_raise_signal, METH_VARARGS,
+     PyDoc_STR("raise_signal(signum): raise a signal")},
     {"_fatal_error", faulthandler_fatal_error_py, METH_VARARGS,
      PyDoc_STR("_fatal_error(message): call Py_FatalError(message)")},
 #if defined(HAVE_SIGALTSTACK) && defined(HAVE_SIGACTION)
