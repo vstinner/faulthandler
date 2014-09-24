@@ -204,8 +204,8 @@ class FaultHandlerTests(unittest.TestCase):
         self.assertRegex(output, regex)
         self.assertNotEqual(exitcode, 0)
 
-    @unittest.skipIf(sys.platform.startswith('aix'),
-                     "the first page of memory is a mapped read-only on AIX")
+    @skipIf(sys.platform.startswith('aix'),
+            "the first page of memory is a mapped read-only on AIX")
     def test_read_null(self):
         self.check_fatal_error("""
             import faulthandler
@@ -234,8 +234,8 @@ class FaultHandlerTests(unittest.TestCase):
             3,
             'Aborted')
 
-    @unittest.skipIf(sys.platform == 'win32',
-                     "SIGFPE cannot be caught on Windows")
+    @skipIf(sys.platform == 'win32',
+            "SIGFPE cannot be caught on Windows")
     def test_sigfpe(self):
         self.check_fatal_error("""
             import faulthandler
@@ -245,7 +245,7 @@ class FaultHandlerTests(unittest.TestCase):
             3,
             'Floating point exception')
 
-    @unittest.skipUnless(hasattr(signal, 'SIGBUS'), 'need signal.SIGBUS')
+    @skipIf(not hasattr(signal, 'SIGBUS'), 'need signal.SIGBUS')
     def test_sigbus(self):
         self.check_fatal_error("""
             import faulthandler
@@ -257,7 +257,7 @@ class FaultHandlerTests(unittest.TestCase):
             5,
             'Bus error')
 
-    @unittest.skipUnless(hasattr(signal, 'SIGILL'), 'need signal.SIGILL')
+    @skipIf(not hasattr(signal, 'SIGILL'), 'need signal.SIGILL')
     def test_sigill(self):
         self.check_fatal_error("""
             import faulthandler
@@ -283,11 +283,11 @@ class FaultHandlerTests(unittest.TestCase):
             3,
             message)
 
-    @unittest.skipIf(sys.platform.startswith('openbsd') and HAVE_THREADS,
-                     "Issue #12868: sigaltstack() doesn't work on "
-                     "OpenBSD if Python is compiled with pthread")
-    @unittest.skipIf(not hasattr(faulthandler, '_stack_overflow'),
-                     'need faulthandler._stack_overflow()')
+    @skipIf(sys.platform.startswith('openbsd') and HAVE_THREADS,
+            "Issue #12868: sigaltstack() doesn't work on "
+            "OpenBSD if Python is compiled with pthread")
+    @skipIf(not hasattr(faulthandler, '_stack_overflow'),
+            'need faulthandler._stack_overflow()')
     def test_stack_overflow(self):
         self.check_fatal_error("""
             import faulthandler
@@ -370,8 +370,11 @@ class FaultHandlerTests(unittest.TestCase):
         code = "import faulthandler; print(faulthandler.is_enabled())"
         args = (sys.executable, '-c', code)
         # don't use assert_python_ok() because it always enable faulthandler
-        output = subprocess.check_output(args)
+        process = subprocess.Popen(args, stdout=subprocess.PIPE)
+        output, _ = process.communicate()
+        exitcode = process.wait()
         self.assertEqual(output.rstrip(), b"False")
+        self.assertEqual(exitcode, 0)
 
     def check_dump_traceback(self, filename):
         """
@@ -443,7 +446,7 @@ class FaultHandlerTests(unittest.TestCase):
         self.assertEqual(trace, expected)
         self.assertEqual(exitcode, 0)
 
-    @unittest.skipIf(not HAVE_THREADS, 'need threads')
+    @skipIf(not HAVE_THREADS, 'need threads')
     def check_dump_traceback_threads(self, filename):
         """
         Call explicitly dump_traceback(all_threads=True) and check the output.
@@ -697,9 +700,12 @@ class FaultHandlerTests(unittest.TestCase):
         stderr = sys.stderr
         try:
             sys.stderr = None
-            with self.assertRaises(RuntimeError) as cm:
+            err = '<no exception raised>'
+            try:
                 yield
-            self.assertEqual(str(cm.exception), "sys.stderr is None")
+            except Exception as exc:
+                err = exc
+            self.assertEqual(str(err), "sys.stderr is None")
         finally:
             sys.stderr = stderr
 
