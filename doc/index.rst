@@ -210,6 +210,13 @@ faulthandler.__version__ is the module version as a string (e.g. "2.0").
 Changelog
 =========
 
+Version 2.4
+-----------
+
+* Python issue #21497: faulthandler functions now raise a better error if
+  ``sys.stderr`` is ``None``: RuntimeError("sys.stderr is None") instead of
+  AttributeError("'NoneType' object has no attribute 'fileno'").
+
 Version 2.3 (2013-12-17)
 ------------------------
 

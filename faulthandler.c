@@ -8,7 +8,7 @@
 #include "pythread.h"
 #include <signal.h>
 
-#define VERSION 0x203
+#define VERSION 0x204
 
 /* Allocate at maximum 100 MB of the stack to raise the stack overflow */
 #define STACK_OVERFLOW_MAX_SIZE (100*1024*1024)
@@ -155,6 +155,10 @@ faulthandler_get_fileno(PyObject *file, int *p_fd)
         file = PySys_GetObject("stderr");
         if (file == NULL) {
             PyErr_SetString(PyExc_RuntimeError, "unable to get sys.stderr");
+            return NULL;
+        }
+        if (file == Py_None) {
+            PyErr_SetString(PyExc_RuntimeError, "sys.stderr is None");
             return NULL;
         }
     }
@@ -316,7 +320,7 @@ faulthandler_fatal_error(int signum)
         return;
     }
 #endif
-    /* call the previous signal handler: it is called immediatly if we use
+    /* call the previous signal handler: it is called immediately if we use
        sigaction() thanks to SA_NODEFER flag, otherwise it is deferred */
     raise(signum);
 }
