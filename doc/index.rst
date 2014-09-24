@@ -216,6 +216,9 @@ Version 2.4
 * Python issue #21497: faulthandler functions now raise a better error if
   ``sys.stderr`` is ``None``: RuntimeError("sys.stderr is None") instead of
   AttributeError("'NoneType' object has no attribute 'fileno'").
+* Python issue #19306: Add extra hints to faulthandler stack dumps that they
+  are upside down.
+
 
 Version 2.3 (2013-12-17)
 ------------------------

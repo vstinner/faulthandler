@@ -54,7 +54,7 @@ dump_decimal(int fd, int value)
     write(fd, buffer, len);
 }
 
-/* Format an integer in range [0; 0xffffffff] to hexdecimal of 'width' digits,
+/* Format an integer in range [0; 0xffffffff] to hexadecimal of 'width' digits,
    and write it into the file fd.
 
    This function is signal safe. */
@@ -195,7 +195,7 @@ dump_traceback(int fd, PyThreadState *tstate, int write_header)
     unsigned int depth;
 
     if (write_header)
-        PUTS(fd, "Traceback (most recent call first):\n");
+        PUTS(fd, "Stack (most recent call first):\n");
 
     frame = _PyThreadState_GetFrame(tstate);
     if (frame == NULL)
@@ -247,7 +247,7 @@ write_thread_id(int fd, PyThreadState *tstate, int is_current)
     else
         PUTS(fd, "Thread 0x");
     dump_hexadecimal(sizeof(long)*2, (unsigned long)tstate->thread_id, fd);
-    PUTS(fd, ":\n");
+    PUTS(fd, " (most recent call first):\n");
 }
 
 /* Dump the traceback of all threads. Return NULL on success, or an error
