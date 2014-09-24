@@ -6,7 +6,8 @@ for VERSION in 2.5 2.6 2.7 3.1 3.2; do
         continue
     fi
     echo "==== Test Python $VERSION ===="
+    rm -rf build
     "$PYTHON" setup.py build || exit $?
     set -x
-    PYTHONPATH=$(ls -d build/lib.*-$VERSION) "$PYTHON" tests.py || exit $?
+    PYTHONPATH=$(ls -d build/lib.*-$VERSION*) "$PYTHON" tests.py || exit $?
 done
