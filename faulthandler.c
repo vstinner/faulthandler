@@ -7,6 +7,12 @@
 #include "Python.h"
 #include "pythread.h"
 #include <signal.h>
+#ifdef MS_WINDOWS
+#  include <windows.h>
+#endif
+#ifdef HAVE_SYS_RESOURCE_H
+#  include <sys/resource.h>
+#endif
 
 #define VERSION 0x204
 
@@ -781,29 +787,51 @@ faulthandler_unregister_py(PyObject *self, PyObject *args)
 #endif   /* FAULTHANDLER_USER */
 
 
+static void
+faulthandler_suppress_crash_report(void)
+{
+#ifdef MS_WINDOWS
+    UINT mode;
+
+    /* Configure Windows to not display the Windows Error Reporting dialog */
+    mode = SetErrorMode(SEM_NOGPFAULTERRORBOX);
+    SetErrorMode(mode | SEM_NOGPFAULTERRORBOX);
+#endif
+
+#ifdef HAVE_SYS_RESOURCE_H
+    struct rlimit rl;
+
+    /* Disable creation of core dump */
+    if (getrlimit(RLIMIT_CORE, &rl) != 0) {
+        rl.rlim_cur = 0;
+        setrlimit(RLIMIT_CORE, &rl);
+    }
+#endif
+
+#ifdef _MSC_VER
+    /* Visual Studio: configure abort() to not display an error message nor
+       open a popup asking to report the fault. */
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+#endif
+}
+
 static PyObject *
 faulthandler_read_null(PyObject *self, PyObject *args)
 {
     volatile int *x;
     volatile int y;
-    int release_gil = 0;
-    if (!PyArg_ParseTuple(args, "|i:_read_null", &release_gil))
-        return NULL;
 
+    faulthandler_suppress_crash_report();
     x = NULL;
-    if (release_gil) {
-        Py_BEGIN_ALLOW_THREADS
-        y = *x;
-        Py_END_ALLOW_THREADS
-    } else
-        y = *x;
+    y = *x;
     return PyLong_FromLong(y);
 
 }
 
-static PyObject *
-faulthandler_sigsegv(PyObject *self, PyObject *args)
+static void
+faulthandler_raise_sigsegv(void)
 {
+    faulthandler_suppress_crash_report();
 #if defined(MS_WINDOWS)
     /* For SIGSEGV, faulthandler_fatal_error() restores the previous signal
        handler and then gives back the execution flow to the program (without
@@ -821,6 +849,22 @@ faulthandler_sigsegv(PyObject *self, PyObject *args)
 #else
     raise(SIGSEGV);
 #endif
+}
+
+static PyObject *
+faulthandler_sigsegv(PyObject *self, PyObject *args)
+{
+    int release_gil = 0;
+    if (!PyArg_ParseTuple(args, "|i:_read_null", &release_gil))
+        return NULL;
+
+    if (release_gil) {
+        Py_BEGIN_ALLOW_THREADS
+        faulthandler_raise_sigsegv();
+        Py_END_ALLOW_THREADS
+    } else {
+        faulthandler_raise_sigsegv();
+    }
     Py_RETURN_NONE;
 }
 
@@ -830,6 +874,7 @@ faulthandler_sigfpe(PyObject *self, PyObject *args)
     /* Do an integer division by zero: raise a SIGFPE on Intel CPU, but not on
        PowerPC. Use volatile to disable compile-time optimizations. */
     volatile int x = 1, y = 0, z;
+    faulthandler_suppress_crash_report();
     z = x / y;
     /* If the division by zero didn't raise a SIGFPE (e.g. on PowerPC),
        raise it manually. */
@@ -842,11 +887,7 @@ faulthandler_sigfpe(PyObject *self, PyObject *args)
 static PyObject *
 faulthandler_sigabrt(PyObject *self, PyObject *args)
 {
-#ifdef _MSC_VER
-    /* Visual Studio: configure abort() to not display an error message nor
-       open a popup asking to report the fault. */
-    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
-#endif
+    faulthandler_suppress_crash_report();
     abort();
     Py_RETURN_NONE;
 }
@@ -858,6 +899,8 @@ faulthandler_raise_signal(PyObject *self, PyObject *args)
 
     if (PyArg_ParseTuple(args, "i:raise_signal", &signum) < 0)
         return NULL;
+
+    faulthandler_suppress_crash_report();
 
     err = raise(signum);
     if (err)
@@ -905,6 +948,7 @@ faulthandler_stack_overflow(PyObject *self)
     size_t depth, size;
     char *sp = (char *)&depth, *stop;
 
+    faulthandler_suppress_crash_report();
     depth = 0;
     stop = stack_overflow(sp - STACK_OVERFLOW_MAX_SIZE,
                           sp + STACK_OVERFLOW_MAX_SIZE,
@@ -986,12 +1030,12 @@ static PyMethodDef module_methods[] = {
                 "'signum' registered by register()")},
 #endif
 
-    {"_read_null", faulthandler_read_null, METH_VARARGS,
-     PyDoc_STR("_read_null(release_gil=False): read from NULL, raise "
+    {"_read_null", faulthandler_read_null, METH_NOARGS,
+     PyDoc_STR("_read_null(): read from NULL, raise "
                "a SIGSEGV or SIGBUS signal depending on the platform")},
     {"_sigsegv", faulthandler_sigsegv, METH_VARARGS,
-     PyDoc_STR("_sigsegv(): raise a SIGSEGV signal")},
-    {"_sigabrt", faulthandler_sigabrt, METH_VARARGS,
+     PyDoc_STR("_sigsegv(release_gil=False): raise a SIGSEGV signal")},
+    {"_sigabrt", faulthandler_sigabrt, METH_NOARGS,
      PyDoc_STR("_sigabrt(): raise a SIGABRT signal")},
     {"_sigfpe", (PyCFunction)faulthandler_sigfpe, METH_NOARGS,
      PyDoc_STR("_sigfpe(): raise a SIGFPE signal")},
