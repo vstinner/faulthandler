@@ -274,7 +274,15 @@ class FaultHandlerTests(unittest.TestCase):
             arg = "b'xyz'"
         else:
             arg = "'xyz'"
-        message = "xyz\nFatal Python error: Aborted"
+        message = "xyz\n"
+        if sys.platform.startswith('win'):
+            # When running unit tests with Microsoft Windows SDK,
+            # Py_FatalError() displays the message "This application has
+            # requested the Runtime to terminate it in an unusual way. Please
+            # contact the application's support team for more information.".
+            # Just ignore this message, it is not related to faulthandler.
+            message += r"(.|\n)*"
+        message += "Fatal Python error: Aborted"
         self.check_fatal_error("""
             import faulthandler
             faulthandler.enable()
