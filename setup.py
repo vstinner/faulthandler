@@ -67,7 +67,7 @@ options = {
     'license': "BSD (2-clause)",
     'description': 'Display the Python traceback on a crash',
     'long_description': long_description,
-    'url': "https://github.com/haypo/faulthandler/wiki/",
+    'url': "http://faulthandler.readthedocs.org/",
     'author': 'Victor Stinner',
     'author_email': 'victor.stinner@gmail.com',
     'ext_modules': [Extension('faulthandler', FILES)],

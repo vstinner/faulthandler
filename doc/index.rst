@@ -210,16 +210,24 @@ faulthandler.__version__ is the module version as a string (e.g. "2.0").
 Changelog
 =========
 
-Version 2.4
------------
+Version 2.4 (2014-10-02)
+------------------------
 
-* Python issue #21497: faulthandler functions now raise a better error if
-  ``sys.stderr`` is ``None``: RuntimeError("sys.stderr is None") instead of
-  AttributeError("'NoneType' object has no attribute 'fileno'").
+* Add a new documentation written with Sphinx used to built a new website:
+  http://faulthandler.readthedocs.org/
 * Python issue #19306: Add extra hints to faulthandler stack dumps that they
   are upside down.
 * Python issue #15463: the faulthandler module truncates strings to 500
   characters, instead of 100, to be able to display long file paths.
+* faulthandler issue #7: Ignore Windows SDK message "This application has
+  requested the Runtime to terminate it in an unusual way. (...)" in
+  test_fatal_error(). It was not a bug in faulthandler, just an issue with
+  the unit test on some Windows setup.
+* Python issue #21497: faulthandler functions now raise a better error if
+  ``sys.stderr`` is ``None``: RuntimeError("sys.stderr is None") instead of
+  AttributeError("'NoneType' object has no attribute 'fileno'").
+* Suppress crash reporter in tests. For example, avoid popup on Windows and
+  don't generate a core dump on Linux.
 
 
 Version 2.3 (2013-12-17)
