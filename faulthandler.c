@@ -41,8 +41,9 @@
 #  define PYINT_ASLONG PyInt_AsLong
 #endif
 
-#define PUTS(fd, str) write(fd, str, strlen(str))
-
+/* cast size_t to int because write() takes an int on Windows
+   (anyway, the length is smaller than 30 characters) */
+#define PUTS(fd, str) write(fd, str, (int)strlen(str))
 
 #ifdef HAVE_SIGACTION
 typedef struct sigaction _Py_sighandler_t;

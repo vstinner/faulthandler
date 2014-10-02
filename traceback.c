@@ -1,18 +1,16 @@
 #include "Python.h"
 #include <frameobject.h>
 
-#define MAX_STRING_LENGTH 500
-#define MAX_FRAME_DEPTH 100
-#define MAX_NTHREADS 100
-
 #if PY_MAJOR_VERSION >= 3
 #  define PYSTRING_CHECK PyUnicode_Check
 #else
 #  define PYSTRING_CHECK PyString_Check
 #endif
 
-#define PUTS(fd, str) write(fd, str, strlen(str))
-
+#define PUTS(fd, str) write(fd, str, (int)strlen(str))
+#define MAX_STRING_LENGTH 500
+#define MAX_FRAME_DEPTH 100
+#define MAX_NTHREADS 100
 
 /* Reverse a string. For example, "abcd" becomes "dcba".
 
