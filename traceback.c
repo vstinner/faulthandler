@@ -58,7 +58,7 @@ dump_decimal(int fd, int value)
    This function is signal safe. */
 
 static void
-dump_hexadecimal(int width, unsigned long value, int fd)
+dump_hexadecimal(int fd, unsigned long value, int width)
 {
     const char *hexdigits = "0123456789abcdef";
     int len;
@@ -82,15 +82,14 @@ dump_ascii(int fd, PyObject *text)
 {
     Py_ssize_t i, size;
     int truncated;
+    unsigned long ch;
 #if PY_MAJOR_VERSION >= 3
     Py_UNICODE *u;
-    char c;
 
     size = PyUnicode_GET_SIZE(text);
     u = PyUnicode_AS_UNICODE(text);
 #else
     char *s;
-    unsigned char c;
 
     size = PyString_GET_SIZE(text);
     s = PyString_AS_STRING(text);
@@ -105,38 +104,41 @@ dump_ascii(int fd, PyObject *text)
 
 #if PY_MAJOR_VERSION >= 3
     for (i=0; i < size; i++, u++) {
-        if (*u < 128) {
-            c = (char)*u;
+        ch = *u;
+        if (' ' <= ch && ch < 0x7f) {
+            /* printable ASCII character */
+            char c = (char)ch;
             write(fd, &c, 1);
         }
-        else if (*u < 256) {
+        else if (ch <= 0xff) {
             PUTS(fd, "\\x");
-            dump_hexadecimal(2, *u, fd);
+            dump_hexadecimal(fd, ch, 2);
         }
         else
 #ifdef Py_UNICODE_WIDE
-        if (*u < 65536)
+        if (ch <= 0xffff)
 #endif
         {
             PUTS(fd, "\\u");
-            dump_hexadecimal(4, *u, fd);
+            dump_hexadecimal(fd, ch, 4);
 #ifdef Py_UNICODE_WIDE
         }
         else {
             PUTS(fd, "\\U");
-            dump_hexadecimal(8, *u, fd);
+            dump_hexadecimal(fd, ch, 8);
 #endif
         }
     }
 #else
     for (i=0; i < size; i++, s++) {
-        c = *s;
-        if (c < 128) {
+        ch = *s;
+        if (' ' <= ch && ch <= 126) {
+            /* printable ASCII character */
             write(fd, s, 1);
         }
         else {
             PUTS(fd, "\\x");
-            dump_hexadecimal(2, c, fd);
+            dump_hexadecimal(fd, ch, 2);
         }
     }
 #endif
@@ -244,7 +246,7 @@ write_thread_id(int fd, PyThreadState *tstate, int is_current)
         PUTS(fd, "Current thread 0x");
     else
         PUTS(fd, "Thread 0x");
-    dump_hexadecimal(sizeof(long)*2, (unsigned long)tstate->thread_id, fd);
+    dump_hexadecimal(fd, (unsigned long)tstate->thread_id, sizeof(unsigned long)*2);
     PUTS(fd, " (most recent call first):\n");
 }
 
