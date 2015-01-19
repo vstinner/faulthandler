@@ -351,6 +351,16 @@ class FaultHandlerTests(unittest.TestCase):
                      "%r is present in %r" % (not_expected, stderr))
         self.assertNotEqual(exitcode, 0)
 
+    def test_custom_header_on_signal(self):
+        self.check_fatal_error("""
+            import faulthandler
+            faulthandler.enable(all_threads=False, header="My header text")
+            faulthandler._sigsegv()
+            """,
+            3,
+            'Segmentation fault: My header text',
+            all_threads=False)
+
     def test_is_enabled(self):
         orig_stderr = sys.stderr
         try:
@@ -522,7 +532,7 @@ class FaultHandlerTests(unittest.TestCase):
         with temporary_filename() as filename:
             self.check_dump_traceback_threads(filename)
 
-    def _check_dump_traceback_later(self, repeat, cancel, filename, loops):
+    def _check_dump_traceback_later(self, repeat, cancel, filename, loops, header=None):
         """
         Check how many times the traceback is written in timeout x 2.5 seconds,
         or timeout x 3.5 seconds if cancel is True: 1, 2 or 3 times depending
@@ -537,7 +547,8 @@ class FaultHandlerTests(unittest.TestCase):
 
             def func(timeout, repeat, cancel, file, loops):
                 for loop in range(loops):
-                    faulthandler.dump_traceback_later(timeout, repeat=repeat, file=file)
+                    faulthandler.dump_traceback_later(timeout,
+                        repeat=repeat, file=file, header={header})
                     if cancel:
                         faulthandler.cancel_dump_traceback_later()
                     # sleep twice because time.sleep() is interrupted by
@@ -559,6 +570,7 @@ class FaultHandlerTests(unittest.TestCase):
                 file.close()
             """
         code = code.format(
+            header=repr(header),
             timeout=TIMEOUT,
             repeat=repeat,
             cancel=cancel,
@@ -573,8 +585,11 @@ class FaultHandlerTests(unittest.TestCase):
             count = loops
             if repeat:
                 count *= 2
-            header = r'Timeout \(%s\)!\nCurrent thread XXX \(most recent call first\):\n' % timeout_str
-            regex = expected_traceback(12, 23, header, min_count=count)
+            if header:
+                header = r'%s\nCurrent thread XXX \(most recent call first\):\n' % header
+            else:
+                header = r'Timeout \(%s\)!\nCurrent thread XXX \(most recent call first\):\n' % timeout_str
+            regex = expected_traceback(13, 24, header, min_count=count)
             self.assertRegex(trace, regex)
         else:
             self.assertEqual(trace, '')
@@ -583,7 +598,7 @@ class FaultHandlerTests(unittest.TestCase):
     @skipIf(not hasattr(faulthandler, 'dump_traceback_later'),
             'need faulthandler.dump_traceback_later()')
     def check_dump_traceback_later(self, repeat=False, cancel=False,
-                                    file=False, twice=False):
+                                    file=False, twice=False, header=None):
         if twice:
             loops = 2
         else:
@@ -591,9 +606,10 @@ class FaultHandlerTests(unittest.TestCase):
         if file:
             with temporary_filename() as filename:
                 self._check_dump_traceback_later(repeat, cancel,
-                                                  filename, loops)
+                                                 filename, loops, header)
         else:
-            self._check_dump_traceback_later(repeat, cancel, None, loops)
+            self._check_dump_traceback_later(repeat, cancel,
+                                             None, loops, header)
 
     def test_dump_traceback_later(self):
         self.check_dump_traceback_later()
@@ -610,10 +626,13 @@ class FaultHandlerTests(unittest.TestCase):
     def test_dump_traceback_later_twice(self):
         self.check_dump_traceback_later(twice=True)
 
+    def test_dump_traceback_later_with_header(self):
+        self.check_dump_traceback_later(twice=True, header="Custom header")
+
     @skipIf(not hasattr(faulthandler, "register"),
             "need faulthandler.register")
     def check_register(self, filename=False, all_threads=False,
-                       unregister=False, chain=False):
+                       unregister=False, chain=False, header=None):
         """
         Register a handler displaying the traceback on a user signal. Raise the
         signal and check the written traceback.
@@ -648,7 +667,8 @@ class FaultHandlerTests(unittest.TestCase):
             if chain:
                 signal.signal(signum, handler)
             faulthandler.register(signum, file=file,
-                                  all_threads={all_threads}, chain={chain})
+                                  all_threads={all_threads}, chain={chain},
+                                  header={header})
             if unregister:
                 faulthandler.unregister(signum)
             func(signum)
@@ -670,6 +690,7 @@ class FaultHandlerTests(unittest.TestCase):
             signum=signum,
             unregister=unregister,
             chain=chain,
+            header=repr(header),
         )
         trace, exitcode = self.get_output(code, filename)
         trace = '\n'.join(trace)
@@ -678,7 +699,9 @@ class FaultHandlerTests(unittest.TestCase):
                 regex = 'Current thread XXX \(most recent call first\):\n'
             else:
                 regex = 'Stack \(most recent call first\):\n'
-            regex = expected_traceback(7, 28, regex)
+            if header:
+                regex = header + '\n' + regex
+            regex = expected_traceback(7, 29, regex)
             self.assertRegex(trace, regex)
         else:
             self.assertEqual(trace, '')
@@ -702,6 +725,9 @@ class FaultHandlerTests(unittest.TestCase):
 
     def test_register_chain(self):
         self.check_register(chain=True)
+
+    def test_header(self):
+        self.check_register(header="Custom header text")
 
     @contextmanager
     def check_stderr_none(self):

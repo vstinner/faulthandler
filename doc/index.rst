@@ -62,7 +62,7 @@ Example of a segmentation fault on Linux: ::
 Nosetests and py.test
 =====================
 
-To use faulthandler in `nose tests <https://nose.readthedocs.org/en/latest/>`_ or `py.test <http://pytest.org/latest/>`_, you can use `nose-faulthandler <https://nose.readthedocs.org/en/latest/>`_ or `pytest-faulthandler <https://github.com/nicoddemus/pytest-faulthandler>`_ plugins. 
+To use faulthandler in `nose tests <https://nose.readthedocs.org/en/latest/>`_ or `py.test <http://pytest.org/latest/>`_, you can use `nose-faulthandler <https://nose.readthedocs.org/en/latest/>`_ or `pytest-faulthandler <https://github.com/nicoddemus/pytest-faulthandler>`_ plugins.
 
 
 Installation
@@ -157,7 +157,9 @@ There are 4 different ways to display the Python traceback:
 
 Fault handler state (disabled by default):
 
-* enable(file=sys.stderr, all_threads=False): enable the fault handler
+* enable(file=sys.stderr, all_threads=False, header=None): enable the fault
+  handler. If 'header' is not ``None`` it is a text printed after signal
+  name
 * disable(): disable the fault handler
 * is_enabled(): get the status of the fault handler
 
@@ -166,9 +168,11 @@ Dump the current traceback:
 * dump_traceback(file=sys.stderr, all_threads=False): dump traceback of the
   current thread, or of all threads if all_threads is True, into file
 * dump_traceback_later(timeout, repeat=False, file=sys.stderr,
-  exit=False): dump the traceback of all threads in timeout seconds, or each
-  timeout seconds if repeat is True. If the function is called twice, the new
-  call replaces previous parameters. Exit immediatly if exit is True.
+  exit=False, header=None): dump the traceback of all threads in timeout
+  seconds, or each timeout seconds if repeat is True. If the function is called
+  twice, the new call replaces previous parameters. If 'header' is ``None`` the
+  message ``Timeout (...)!`` is printed before traceback. Exit immediatly if
+  exit is True.
 * cancel_dump_traceback_later(): cancel the previous call to
   dump_traceback_later()
 
@@ -181,10 +185,11 @@ file. Use disable() and cancel_dump_traceback_later() to clear this reference.
 
 Dump the traceback on an user signal:
 
-* register(signum, file=sys.stderr, all_threads=False, chain=False): register
-  an handler for the signal 'signum': dump the traceback of the current
-  thread, or of all threads if all_threads is True, into file". Call the
-  previous handler if chain is ``True``. Not available on Windows.
+* register(signum, file=sys.stderr, all_threads=False, chain=False, header=None):
+  register an handler for the signal 'signum': dump the traceback of the
+  current thread, or of all threads if all_threads is True, into file". Call
+  the previous handler if chain is ``True``. Prints 'header' before traceback
+  if it's not ``None``. Not available on Windows.
 * unregister(signum): unregister the handler of the signal 'signum' registered
   by register(). Not available on Windows.
 
@@ -214,6 +219,7 @@ faulthandler.__version__ is the module version as a string (e.g. "2.0").
 Changelog
 =========
 
+
 Version 2.5
 -----------
 
@@ -224,6 +230,9 @@ Version 2.5
   and it becomes difficult to test them.
 * Add tox.ini to run tests with tox: it creates a virtual environment, compile
   and install faulthandler, and run unit tests.
+* Add a ``header`` keyword argument for ``enable()``, ``register()`` and
+  ``dump_traceback_later()`` functions
+
 
 Version 2.4 (2014-10-02)
 ------------------------
