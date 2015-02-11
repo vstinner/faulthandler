@@ -218,6 +218,9 @@ Changelog
 Version 2.5
 -----------
 
+* Issue #23433: Fix faulthandler._stack_overflow(). Fix undefined behaviour:
+  don't compare pointers. Use Py_uintptr_t type instead of void*. It fixes
+  test_faulthandler on Fedora 22 which now uses GCC 5.
 * Drop support and Python 2.5 and 3.1: no Linux distribution use it anymore,
   and it becomes difficult to test them.
 * Add tox.ini to run tests with tox: it creates a virtual environment, compile
