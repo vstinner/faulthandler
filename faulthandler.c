@@ -721,9 +721,10 @@ faulthandler_register_py(PyObject *self,
         return NULL;
 
     if (user_signals == NULL) {
-        user_signals = calloc(NSIG, sizeof(user_signal_t));
+        user_signals = PyMem_Malloc(NSIG * sizeof(user_signal_t));
         if (user_signals == NULL)
             return PyErr_NoMemory();
+        memset(user_signals, 0, NSIG * sizeof(user_signal_t));
     }
     user = &user_signals[signum];
 
@@ -1164,7 +1165,7 @@ faulthandler_unload(void)
                by Py_AtExit(). Destroy a Python object here raise strange
                errors. */
         }
-        free(user_signals);
+        PyMem_Free(user_signals);
         user_signals = NULL;
     }
 #endif
