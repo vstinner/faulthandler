@@ -1,18 +1,17 @@
 #!/usr/bin/env python
 
 # Todo list to prepare a release:
-#  - run ./run_tests.py
-#  - run tests on FreeBSD and Windows
-#  - set VERSION in faulthandler.c
-#  - set VERSION in setup.py
-#  - set VERSION in doc/conf.py
-#  - set release date in the ChangeLog (README file)
+#  - run tests with run tox
+#  - run tests on Linux, Windows, FreeBSD and Mac OS X:
+#    test at least Python 2.7
+#  - set VERSION: faulthandler.c, setup.py, doc/conf.py
+#  - set release date in the the changelog: doc/index.rst
 #  - git commit -a
 #  - git tag -a faulthandler-x.y -m "tag version x.y"
 #  - git push
 #  - git push --tags
 #  - python setup.py register sdist upload
-#  - Build 32-bi and 64-bit wheel packages on Windows:
+#  - Build 32-bit and 64-bit wheel packages on Windows:
 #
 #    - python2.6 setup.py bdist_wheel upload
 #    - python2.7 setup.py bdist_wheel upload
@@ -22,9 +21,7 @@
 #  - update the website
 #
 # After the release:
-#  - increment VERSION in faulthandler.c
-#  - increment VERSION in setup.py
-#  - add a new empty section in the Changelog for the new version
+#  - increment VERSION: faulthandler.c, setup.py, doc/conf.py
 #  - git commit -a
 #  - git push
 
@@ -37,7 +34,7 @@ except ImportError:
 from os.path import join as path_join
 import sys
 
-if sys.version_info >= (3,3):
+if sys.version_info >= (3, 3):
     print("ERROR: faulthandler is a builtin module since Python 3.3")
     sys.exit(1)
 
