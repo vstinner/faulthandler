@@ -69,6 +69,9 @@ To use faulthandler in nose tests, you can use `nose-faulthandler
 Installation
 ============
 
+faulthandler supports Python 2.6, 2.7 and 3.2. It may also support Python 2.5
+and 3.1, but these versions are no more officially supported.
+
 Install faulthandler on Windows using pip
 -----------------------------------------
 
@@ -211,6 +214,14 @@ faulthandler.__version__ is the module version as a string (e.g. "2.0").
 
 Changelog
 =========
+
+Version 2.5
+-----------
+
+* Drop support and Python 2.5 and 3.1: no Linux distribution use it anymore,
+  and it becomes difficult to test them.
+* Add tox.ini to run tests with tox: it creates a virtual environment, compile
+  and install faulthandler, and run unit tests.
 
 Version 2.4 (2014-10-02)
 ------------------------
@@ -366,15 +377,6 @@ Version 1.0 (2010-12-24)
 ------------------------
 
   First public release
-
-
-Status
-======
-
-* 2011-01-31: Version 1.2 tested with Python 2.5, 2.6, 2.7, 3.1 and 3.2 on
-  Debian Sid
-* 2010-12-24: Tested with Python 2.6, 3.1 and 3.2 on Debian Sid
-* 2010-12-24: Tested with Python 2.6 and 3.1 on Windows XP
 
 
 Similar projects

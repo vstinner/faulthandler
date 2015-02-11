@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
 # Todo list to prepare a release:
+#  - set VERSION: faulthandler.c, setup.py, doc/conf.py, doc/index.rst
+#  - update the changelog: doc/index.rst
 #  - run tests with run tox
 #  - run tests on Linux, Windows, FreeBSD and Mac OS X:
 #    test at least Python 2.7
-#  - set VERSION: faulthandler.c, setup.py, doc/conf.py
-#  - set release date in the the changelog: doc/index.rst
+#  - set release date in the changelog: doc/index.rst
 #  - git commit -a
 #  - git tag -a faulthandler-x.y -m "tag version x.y"
 #  - git push
@@ -21,7 +22,7 @@
 #  - update the website
 #
 # After the release:
-#  - increment VERSION: faulthandler.c, setup.py, doc/conf.py
+#  - increment VERSION: faulthandler.c, setup.py, doc/conf.py, doc/index.rst
 #  - git commit -a
 #  - git push
 
@@ -38,7 +39,7 @@ if sys.version_info >= (3, 3):
     print("ERROR: faulthandler is a builtin module since Python 3.3")
     sys.exit(1)
 
-VERSION = "2.4"
+VERSION = "2.5"
 
 FILES = ['faulthandler.c', 'traceback.c']
 
