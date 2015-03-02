@@ -59,11 +59,10 @@ Example of a segmentation fault on Linux: ::
     Segmentation fault
 
 
-Nosetests
-=========
+Nosetests and py.test
+=====================
 
-To use faulthandler in nose tests, you can use `nose-faulthandler
-<https://pypi.python.org/pypi/nose-faulthandler>`_ plugin.
+To use faulthandler in `nose tests <https://nose.readthedocs.org/en/latest/>`_ or `py.test <http://pytest.org/latest/>`_, you can use `nose-faulthandler <https://nose.readthedocs.org/en/latest/>`_ or `pytest-faulthandler <https://github.com/nicoddemus/pytest-faulthandler>`_ plugins. 
 
 
 Installation
