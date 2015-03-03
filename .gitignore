@@ -2,3 +2,5 @@
 build/
 dist/
 MANIFEST
+.tox/
+faulthandler.egg-info/
