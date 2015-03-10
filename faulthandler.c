@@ -64,8 +64,10 @@ static struct {
     PyObject *file;
     int fd;
     int all_threads;
+    char *header;
+    size_t header_len;
     PyInterpreterState *interp;
-} fatal_error = {0, NULL, -1, 0};
+} fatal_error = {0, NULL, -1, 0, NULL, 0};
 
 #ifdef FAULTHANDLER_LATER
 static struct {
@@ -89,6 +91,8 @@ typedef struct {
     int chain;
     _Py_sighandler_t previous;
     PyInterpreterState *interp;
+    char *header;
+    size_t header_len;
 } user_signal_t;
 
 static user_signal_t *user_signals;
@@ -296,6 +300,10 @@ faulthandler_fatal_error(int signum)
 
     PUTS(fd, "Fatal Python error: ");
     PUTS(fd, handler->name);
+    if(fatal_error.header) {
+        PUTS(fd, ": ");
+        write(fd, fatal_error.header, fatal_error.header_len);
+    }
     PUTS(fd, "\n\n");
 
 #ifdef WITH_THREAD
@@ -337,7 +345,7 @@ faulthandler_fatal_error(int signum)
 static PyObject*
 faulthandler_enable(PyObject *self, PyObject *args, PyObject *kwargs)
 {
-    static char *kwlist[] = {"file", "all_threads", NULL};
+    static char *kwlist[] = {"file", "all_threads", "header", NULL};
     PyObject *file = NULL;
     int all_threads = 1;
     unsigned int i;
@@ -348,9 +356,10 @@ faulthandler_enable(PyObject *self, PyObject *args, PyObject *kwargs)
     int err;
     int fd;
     PyThreadState *tstate;
+    char *header = NULL;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
-        "|Oi:enable", kwlist, &file, &all_threads))
+        "|Oiz:enable", kwlist, &file, &all_threads, &header))
         return NULL;
 
     file = faulthandler_get_fileno(file, &fd);
@@ -367,6 +376,19 @@ faulthandler_enable(PyObject *self, PyObject *args, PyObject *kwargs)
     fatal_error.fd = fd;
     fatal_error.all_threads = all_threads;
     fatal_error.interp = tstate->interp;
+
+    if(fatal_error.header) {
+        free(fatal_error.header);
+        fatal_error.header = NULL;
+        fatal_error.header_len = 0;
+    }
+    if(header) {
+        header = strdup(header);
+        if (header == NULL)
+            return PyErr_NoMemory();
+        fatal_error.header = header;
+        fatal_error.header_len = strlen(header);
+    }
 
     if (!fatal_error.enabled) {
         fatal_error.enabled = 1;
@@ -424,6 +446,11 @@ faulthandler_disable(void)
     }
 
     Py_CLEAR(fatal_error.file);
+    if(fatal_error.header) {
+        free(fatal_error.header);
+        fatal_error.header = NULL;
+        fatal_error.header_len = 0;
+    }
 }
 
 static PyObject*
@@ -461,6 +488,7 @@ faulthandler_alarm(int signum)
     int ok;
 
     write(fault_alarm.fd, fault_alarm.header, fault_alarm.header_len);
+    PUTS(fault_alarm.fd, "\n");
 
     /* PyThreadState_Get() doesn't give the state of the current thread if
        the thread doesn't hold the GIL. Read the thread local storage (TLS)
@@ -498,11 +526,11 @@ format_timeout(double timeout)
 
     if (us != 0)
         PyOS_snprintf(buffer, sizeof(buffer),
-                      "Timeout (%lu:%02lu:%02lu.%06lu)!\n",
+                      "Timeout (%lu:%02lu:%02lu.%06lu)!",
                       hour, min, sec, us);
     else
         PyOS_snprintf(buffer, sizeof(buffer),
-                      "Timeout (%lu:%02lu:%02lu)!\n",
+                      "Timeout (%lu:%02lu:%02lu)!",
                       hour, min, sec);
 
     return strdup(buffer);
@@ -512,7 +540,8 @@ static PyObject*
 faulthandler_dump_traceback_later(PyObject *self,
                                   PyObject *args, PyObject *kwargs)
 {
-    static char *kwlist[] = {"timeout", "repeat", "file", "exit", NULL};
+    static char *kwlist[] = {"timeout", "repeat", "file", "exit",
+                             "header", NULL};
     int timeout;
     PyOS_sighandler_t previous;
     int repeat = 0;
@@ -520,12 +549,12 @@ faulthandler_dump_traceback_later(PyObject *self,
     int exit = 0;
     PyThreadState *tstate;
     int fd;
-    char *header;
+    char *header = NULL;
     size_t header_len;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
-        "i|iOi:dump_traceback_later", kwlist,
-        &timeout, &repeat, &file, &exit))
+        "i|iOiz:dump_traceback_later", kwlist,
+        &timeout, &repeat, &file, &exit, &header))
         return NULL;
     if (timeout <= 0) {
         PyErr_SetString(PyExc_ValueError, "timeout must be greater than 0");
@@ -540,8 +569,12 @@ faulthandler_dump_traceback_later(PyObject *self,
     if (file == NULL)
         return NULL;
 
-    /* format the timeout */
-    header = format_timeout(timeout);
+    if (header == NULL) {
+        /* format the timeout if no user message specified */
+        header = format_timeout(timeout);
+    } else {
+        header = strdup(header);
+    }
     if (header == NULL)
         return PyErr_NoMemory();
     header_len = strlen(header);
@@ -561,6 +594,11 @@ faulthandler_dump_traceback_later(PyObject *self,
     fault_alarm.repeat = repeat;
     fault_alarm.interp = tstate->interp;
     fault_alarm.exit = exit;
+    if(fault_alarm.header) {
+        free(fault_alarm.header);
+        fault_alarm.header = NULL;
+        fault_alarm.header_len = 0;
+    }
     fault_alarm.header = header;
     fault_alarm.header_len = header_len;
 
@@ -576,6 +614,7 @@ faulthandler_cancel_dump_traceback_later_py(PyObject *self)
     Py_CLEAR(fault_alarm.file);
     free(fault_alarm.header);
     fault_alarm.header = NULL;
+    fault_alarm.header_len = 0;
     Py_RETURN_NONE;
 }
 #endif /* FAULTHANDLER_LATER */
@@ -641,6 +680,11 @@ faulthandler_user(int signum)
     tstate = PyThreadState_Get();
 #endif
 
+    if(user->header) {
+        write(user->fd, user->header, user->header_len);
+        PUTS(user->fd, "\n");
+    }
+
     if (user->all_threads)
         _Py_DumpTracebackThreads(user->fd, user->interp, tstate);
     else {
@@ -693,7 +737,8 @@ static PyObject*
 faulthandler_register_py(PyObject *self,
                          PyObject *args, PyObject *kwargs)
 {
-    static char *kwlist[] = {"signum", "file", "all_threads", "chain", NULL};
+    static char *kwlist[] = {"signum", "file", "all_threads", "chain",
+                             "header", NULL};
     int signum;
     PyObject *file = NULL;
     int all_threads = 1;
@@ -703,10 +748,12 @@ faulthandler_register_py(PyObject *self,
     _Py_sighandler_t previous;
     PyThreadState *tstate;
     int err;
+    char *header = NULL;
+    size_t header_len = 0;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
-        "i|Oii:register", kwlist,
-        &signum, &file, &all_threads, &chain))
+        "i|Oiiz:register", kwlist,
+        &signum, &file, &all_threads, &chain, &header))
         return NULL;
 
     if (!check_signum(signum))
@@ -737,6 +784,12 @@ faulthandler_register_py(PyObject *self,
 
         user->previous = previous;
     }
+    if (header) {
+        header = strdup(header);
+        if (header == NULL)
+            return PyErr_NoMemory();
+        header_len = strlen(header);
+    }
 
     Py_XDECREF(user->file);
     Py_INCREF(file);
@@ -746,6 +799,13 @@ faulthandler_register_py(PyObject *self,
     user->chain = chain;
     user->interp = tstate->interp;
     user->enabled = 1;
+    if(user->header) {
+        free(user->header);
+        user->header = NULL;
+        user->header_len = 0;
+    }
+    user->header = header;
+    user->header_len = header_len;
 
     Py_RETURN_NONE;
 }
@@ -762,6 +822,12 @@ faulthandler_unregister(user_signal_t *user, int signum)
     (void)signal(signum, user->previous);
 #endif
     user->fd = -1;
+    if(user->header) {
+        free(user->header);
+        user->header = NULL;
+        user->header_len = 0;
+    }
+
     return 1;
 }
 
