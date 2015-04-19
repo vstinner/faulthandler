@@ -11,10 +11,35 @@
 #  define PYSTRING_CHECK PyString_Check
 #endif
 
-#define PUTS(fd, str) write(fd, str, (int)strlen(str))
+#define PUTS(fd, str) _Py_write_noraise(fd, str, (int)strlen(str))
 #define MAX_STRING_LENGTH 500
 #define MAX_FRAME_DEPTH 100
 #define MAX_NTHREADS 100
+
+/* Write count bytes of buf into fd.
+ *
+ * On success, return the number of written bytes, it can be lower than count
+ * including 0. On error, set errno and return -1.
+ *
+ * When interrupted by a signal (write() fails with EINTR), retry the syscall
+ * without calling the Python signal handler. */
+static void
+_Py_write_noraise(int fd, const char *buf, size_t count)
+{
+    Py_ssize_t res;
+
+    do {
+#ifdef MS_WINDOWS
+        assert(count < INT_MAX);
+        res = write(fd, buf, (int)count);
+#else
+        res = write(fd, buf, count);
+#endif
+    /* retry write() if it was interrupted by a signal */
+    } while (res < 0 && errno == EINTR);
+
+    return res;
+}
 
 /* Reverse a string. For example, "abcd" becomes "dcba".
 
@@ -53,7 +78,7 @@ dump_decimal(int fd, int value)
         len++;
     } while (value);
     reverse_string(buffer, len);
-    write(fd, buffer, len);
+    _Py_write_noraise(fd, buffer, len);
 }
 
 /* Format an integer in range [0; 0xffffffff] to hexadecimal of 'width' digits,
@@ -74,7 +99,7 @@ dump_hexadecimal(int fd, unsigned long value, int width)
         len++;
     } while (len < width || value);
     reverse_string(buffer, len);
-    write(fd, buffer, len);
+    _Py_write_noraise(fd, buffer, len);
 }
 
 /* Write an unicode object into the file fd using ascii+backslashreplace.
@@ -112,7 +137,7 @@ dump_ascii(int fd, PyObject *text)
         if (' ' <= ch && ch < 0x7f) {
             /* printable ASCII character */
             char c = (char)ch;
-            write(fd, &c, 1);
+            _Py_write_noraise(fd, &c, 1);
         }
         else if (ch <= 0xff) {
             PUTS(fd, "\\x");
@@ -138,7 +163,7 @@ dump_ascii(int fd, PyObject *text)
         ch = *s;
         if (' ' <= ch && ch <= 126) {
             /* printable ASCII character */
-            write(fd, s, 1);
+            _Py_write_noraise(fd, s, 1);
         }
         else {
             PUTS(fd, "\\x");
@@ -165,9 +190,9 @@ dump_frame(int fd, PyFrameObject *frame)
     if (code != NULL && code->co_filename != NULL
         && PYSTRING_CHECK(code->co_filename))
     {
-        write(fd, "\"", 1);
+        PUTS(fd, "\"");
         dump_ascii(fd, code->co_filename);
-        write(fd, "\"", 1);
+        PUTS(fd, "\"");
     } else {
         PUTS(fd, "???");
     }
@@ -189,7 +214,7 @@ dump_frame(int fd, PyFrameObject *frame)
     else
         PUTS(fd, "???");
 
-    write(fd, "\n", 1);
+    PUTS(fd, "\n");
 }
 
 static void
@@ -219,19 +244,12 @@ dump_traceback(int fd, PyThreadState *tstate, int write_header)
     }
 }
 
-/* Write the current Python traceback into the file 'fd':
+/* Dump the traceback of a Python thread into fd. Use write() to write the
+   traceback and retry if write() is interrupted by a signal (failed with
+   EINTR), but don't call the Python signal handler.
 
-   Traceback (most recent call first):
-     File "xxx", line xxx in <xxx>
-     File "xxx", line xxx in <xxx>
-     ...
-     File "xxx", line xxx in <xxx>
-
-   Write only the first MAX_FRAME_DEPTH frames. If the traceback is truncated, write
-   the line "  ...".
-
-   This function is signal safe. */
-
+   The caller is responsible to call PyErr_CheckSignals() to call Python signal
+   handlers if signals were received. */
 void
 _Py_DumpTraceback(int fd, PyThreadState *tstate)
 {
@@ -267,14 +285,14 @@ write_thread_id(int fd, PyThreadState *tstate, int is_current)
     PUTS(fd, " (most recent call first):\n");
 }
 
-/* Dump the traceback of all threads. Return NULL on success, or an error
-   message on error.
+/* Dump the traceback of all Python threads into fd. Use write() to write the
+   traceback and retry if write() is interrupted by a signal (failed with
+   EINTR), but don't call the Python signal handler.
 
-   This function is signal safe. */
-
+   The caller is responsible to call PyErr_CheckSignals() to call Python signal
+   handlers if signals were received. */
 const char*
-_Py_DumpTracebackThreads(int fd,
-                         PyInterpreterState *interp,
+_Py_DumpTracebackThreads(int fd, PyInterpreterState *interp,
                          PyThreadState *current_thread)
 {
     PyThreadState *tstate;
@@ -291,7 +309,7 @@ _Py_DumpTracebackThreads(int fd,
     do
     {
         if (nthreads != 0)
-            write(fd, "\n", 1);
+            PUTS(fd, "\n");
         if (nthreads >= MAX_NTHREADS) {
             PUTS(fd, "...\n");
             break;
