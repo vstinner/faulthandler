@@ -180,6 +180,9 @@ Dumping the traceback
    Dump the tracebacks of all threads into *file*. If *all_threads* is
    ``False``, dump only the current thread.
 
+   .. versionchanged:: 2.5
+      Added support for passing file descriptor to this function.
+
 
 Fault handler state
 -------------------
@@ -194,6 +197,9 @@ Fault handler state
 
    The *file* must be kept open until the fault handler is disabled: see
    :ref:`issue with file descriptors <faulthandler-fd>`.
+
+   .. versionchanged:: 2.5
+      Added support for passing file descriptor to this function.
 
 .. function:: disable()
 
@@ -228,6 +234,9 @@ Dumping the tracebacks after a timeout
 
    Not available on Windows.
 
+   .. versionchanged:: 2.5
+      Added support for passing file descriptor to this function.
+
 .. function:: cancel_dump_traceback_later()
 
    Cancel the last call to :func:`dump_traceback_later`.
@@ -246,6 +255,9 @@ Dumping the traceback on a user signal
    :func:`unregister`: see :ref:`issue with file descriptors <faulthandler-fd>`.
 
    Not available on Windows.
+
+   .. versionchanged:: 2.5
+      Added support for passing file descriptor to this function.
 
 .. function:: unregister(signum)
 
@@ -281,6 +293,9 @@ Version 2.5
   It fixes ``test_faulthandler`` on Fedora 22 which now uses GCC 5.
 * The ``write()`` function used to write the traceback is now retried when it
   is interrupted by a signal.
+- Issue #23566: enable(), register(), dump_traceback() and
+  dump_traceback_later() functions now accept file descriptors. Patch by Wei
+  Wu.
 * Drop support and Python 2.5 and 3.1: no Linux distribution use it anymore,
   and it becomes difficult to test them.
 * Add tox.ini to run tests with tox: it creates a virtual environment, compile
