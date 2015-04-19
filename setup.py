@@ -27,17 +27,64 @@
 #  - git push
 
 from __future__ import with_statement
-try:
-    # setuptools supports bdist_wheel
-    from setuptools import setup, Extension
-except ImportError:
-    from distutils.core import setup, Extension
-from os.path import join as path_join
+
 import sys
+from os.path import join as path_join
+from os.path import basename
+from os.path import dirname
+from distutils.command.build import build
+from setuptools import Command
+from setuptools import Extension
+from setuptools import setup
+from setuptools.command.develop import develop
+from setuptools.command.easy_install import easy_install
 
 if sys.version_info >= (3, 3):
     print("ERROR: faulthandler is a builtin module since Python 3.3")
     sys.exit(1)
+
+
+class BuildWithPTH(build):
+    def run(self):
+        build.run(self)
+        path = path_join(dirname(__file__), 'faulthandler.pth')
+        dest = path_join(self.build_lib, basename(path))
+        self.copy_file(path, dest)
+
+
+class EasyInstallWithPTH(easy_install):
+    def run(self):
+        easy_install.run(self)
+        path = path_join(dirname(__file__), 'faulthandler.pth')
+        dest = path_join(self.install_dir, basename(path))
+        self.copy_file(path, dest)
+
+
+class DevelopWithPTH(develop):
+    def run(self):
+        develop.run(self)
+        path = path_join(dirname(__file__), 'faulthandler.pth')
+        dest = path_join(self.install_dir, basename(path))
+        self.copy_file(path, dest)
+
+
+class GeneratePTH(Command):
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        with open(path_join(dirname(__file__), 'faulthandler.pth'), 'w') as fh:
+            with open(path_join(dirname(__file__), 'faulthandler.embed')) as sh:
+                fh.write(
+                    'import os, sys;'
+                    'exec(%r)' % sh.read().replace('    ', ' ')
+                )
+
 
 VERSION = "2.5"
 
@@ -70,6 +117,12 @@ options = {
     'author_email': 'victor.stinner@gmail.com',
     'ext_modules': [Extension('faulthandler', FILES)],
     'classifiers': CLASSIFIERS,
+    'cmdclass': {
+        'build': BuildWithPTH,
+        'easy_install': EasyInstallWithPTH,
+        'develop': DevelopWithPTH,
+        'genpth': GeneratePTH,
+    },
 }
 
 setup(**options)

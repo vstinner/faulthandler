@@ -1,0 +1,6 @@
+if os.environ.get('PYTHONFAULTHANDLER'):
+    try:
+        import faulthandler
+        faulthandler.enable()
+    except Exception as exc:
+        sys.stderr.write("Failed to enable faulthandler: %s\n" % exc)
