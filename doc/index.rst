@@ -274,8 +274,8 @@ Changelog
 Version 2.5
 -----------
 
-* Add support for the PYTHONFAULTHANDLER environment variable. Patch written
-  by Ionel Cristian Mărieș.
+* Add support for the ``PYTHONFAULTHANDLER`` environment variable. Patch
+  written by Ionel Cristian Mărieș.
 * Issue #23433: Fix undefined behaviour in ``faulthandler._stack_overflow()``:
   don't compare pointers, use the ``Py_uintptr_t`` type instead of ``void*``.
   It fixes ``test_faulthandler`` on Fedora 22 which now uses GCC 5.

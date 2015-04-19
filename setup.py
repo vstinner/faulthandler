@@ -16,7 +16,6 @@
 #
 #    - python2.6 setup.py bdist_wheel upload
 #    - python2.7 setup.py bdist_wheel upload
-#    - python3.1 setup.py bdist_wheel upload
 #    - python3.2 setup.py bdist_wheel upload
 #
 #  - update the website
