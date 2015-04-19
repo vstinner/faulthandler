@@ -33,6 +33,7 @@ from os.path import join as path_join
 from os.path import basename
 from os.path import dirname
 from distutils.command.build import build
+from setuptools import Command
 from setuptools import Extension
 from setuptools import setup
 from setuptools.command.develop import develop
@@ -65,6 +66,24 @@ class DevelopWithPTH(develop):
         path = path_join(dirname(__file__), 'faulthandler.pth')
         dest = path_join(self.install_dir, basename(path))
         self.copy_file(path, dest)
+
+
+class GeneratePTH(Command):
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        with open(path_join(dirname(__file__), 'faulthandler.pth'), 'w') as fh:
+            with open(path_join(dirname(__file__), 'faulthandler.embed')) as sh:
+                fh.write(
+                    'import os, sys;'
+                    'exec(%r)' % sh.read().replace('    ', ' ')
+                )
 
 
 VERSION = "2.5"
@@ -102,6 +121,7 @@ options = {
         'build': BuildWithPTH,
         'easy_install': EasyInstallWithPTH,
         'develop': DevelopWithPTH,
+        'genpth': GeneratePTH,
     },
 }
 
