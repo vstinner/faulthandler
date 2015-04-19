@@ -14,6 +14,9 @@ memory on the stack, even on stack overflow (not available on Windows).
 
 Import the module and call ``faulthandler.enable()`` to enable the fault handler.
 
+You can also enable it at startup by setting the PYTHONFAULTHANDLER environment
+variable.
+
 The fault handler is called on catastrophic cases and so it can only use
 signal-safe functions (eg. it doesn't allocate memory on the heap). That's why
 the traceback is limited: it only supports ASCII encoding (use the
@@ -62,7 +65,7 @@ Example of a segmentation fault on Linux: ::
 Nosetests and py.test
 =====================
 
-To use faulthandler in `nose tests <https://nose.readthedocs.org/en/latest/>`_ or `py.test <http://pytest.org/latest/>`_, you can use `nose-faulthandler <https://nose.readthedocs.org/en/latest/>`_ or `pytest-faulthandler <https://github.com/nicoddemus/pytest-faulthandler>`_ plugins. 
+To use faulthandler in `nose tests <https://nose.readthedocs.org/en/latest/>`_ or `py.test <http://pytest.org/latest/>`_, you can use `nose-faulthandler <https://nose.readthedocs.org/en/latest/>`_ or `pytest-faulthandler <https://github.com/nicoddemus/pytest-faulthandler>`_ plugins.
 
 
 Installation
@@ -224,6 +227,7 @@ Version 2.5
   and it becomes difficult to test them.
 * Add tox.ini to run tests with tox: it creates a virtual environment, compile
   and install faulthandler, and run unit tests.
+* Add support for the PYTHONFAULTHANDLER environment variable.
 
 Version 2.4 (2014-10-02)
 ------------------------

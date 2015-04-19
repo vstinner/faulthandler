@@ -120,12 +120,12 @@ else:
         except (ValueError, resource_error):
             pass
 
-def spawn_python(*args):
+def spawn_python(*args, **kwargs):
     args = (sys.executable,) + args
     return subprocess.Popen(args,
                             stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT, **kwargs)
 
 def expected_traceback(lineno1, lineno2, header, min_count=1):
     regex = header
@@ -148,7 +148,7 @@ def temporary_filename():
            pass
 
 class FaultHandlerTests(unittest.TestCase):
-    def get_output(self, code, filename=None):
+    def get_output(self, code, filename=None, **kwargs):
         """
         Run the specified code in Python (in a new child process) and read the
         output from the standard error or from a file (if filename is set).
@@ -160,7 +160,7 @@ class FaultHandlerTests(unittest.TestCase):
         """
         code = dedent(code).strip()
         with SuppressCrashReport():
-            process = spawn_python('-c', code)
+            process = spawn_python('-c', code, **kwargs)
         stdout, stderr = process.communicate()
         exitcode = process.wait()
         output = re.sub(br"\[\d+ refs\]\r?\n?", b"", stdout).strip()
@@ -176,7 +176,7 @@ class FaultHandlerTests(unittest.TestCase):
         return output.splitlines(), exitcode
 
     def check_fatal_error(self, code, line_number, name_regex,
-                          filename=None, all_threads=True, other_regex=None):
+                          filename=None, all_threads=True, other_regex=None, **kwargs):
         """
         Check that the fault handler for fatal errors is enabled and check the
         traceback from the child process output.
@@ -199,7 +199,7 @@ class FaultHandlerTests(unittest.TestCase):
             header=re.escape(header)).strip()
         if other_regex:
             regex += '|' + other_regex
-        output, exitcode = self.get_output(code, filename)
+        output, exitcode = self.get_output(code, filename, **kwargs)
         output = '\n'.join(output)
         self.assertRegex(output, regex)
         self.assertNotEqual(exitcode, 0)
@@ -336,6 +336,23 @@ class FaultHandlerTests(unittest.TestCase):
             3,
             'Segmentation fault',
             all_threads=False)
+
+    def test_enable_env_var(self):
+        output, exitcode = self.get_output("""
+            import faulthandler
+            print(faulthandler.is_enabled())
+            """,
+            env=dict(os.environ, PYTHONFAULTHANDLER='x'))
+        self.assertEqual(output, ["True"])
+        self.assertEqual(exitcode, 0)
+
+        output, exitcode = self.get_output("""
+            import faulthandler
+            print(faulthandler.is_enabled())
+            """,
+            env=dict(os.environ, PYTHONFAULTHANDLER=''))
+        self.assertEqual(output, ["False"])
+        self.assertEqual(exitcode, 0)
 
     def test_disable(self):
         code = """
