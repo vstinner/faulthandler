@@ -7,30 +7,37 @@ Fault handler
    :align: right
    :target: http://www.flickr.com/photos/haypo/7199652438/
 
-Fault handler for SIGSEGV, SIGFPE, SIGABRT, SIGBUS and SIGILL signals: display
-the Python traceback and restore the previous handler. Allocate an alternate
-stack for this handler, if sigaltstack() is available, to be able to allocate
-memory on the stack, even on stack overflow (not available on Windows).
-
-Import the module and call ``faulthandler.enable()`` to enable the fault handler.
-
-You can also enable it at startup by setting the PYTHONFAULTHANDLER environment
+This module contains functions to dump Python tracebacks explicitly, on a fault,
+after a timeout, or on a user signal. Call :func:`faulthandler.enable` to
+install fault handlers for the :const:`SIGSEGV`, :const:`SIGFPE`,
+:const:`SIGABRT`, :const:`SIGBUS`, and :const:`SIGILL` signals. You can also
+enable them at startup by setting the :envvar:`PYTHONFAULTHANDLER` environment
 variable.
 
-The fault handler is called on catastrophic cases and so it can only use
-signal-safe functions (eg. it doesn't allocate memory on the heap). That's why
-the traceback is limited: it only supports ASCII encoding (use the
-backslashreplace error handler for non-ASCII characters) and limits each string
-to 100 characters, doesn't print the source code in the traceback (only the
-filename, the function name and the line number), is limited to 100 frames and
-100 threads.
+The fault handler is compatible with system fault handlers like Apport or the
+Windows fault handler. The module uses an alternative stack for signal handlers
+if the :c:func:`sigaltstack` function is available. This allows it to dump the
+traceback even on a stack overflow.
 
-By default, the Python traceback is written to the standard error stream. Start
-your graphical applications in a terminal and run your server in foreground to
-see the traceback, or pass a file to faulthandler.enable().
+The fault handler is called on catastrophic cases and therefore can only use
+signal-safe functions (e.g. it cannot allocate memory on the heap). Because of
+this limitation traceback dumping is minimal compared to normal Python
+tracebacks:
 
-faulthandler is implemented in C using signal handlers to be able to dump a
-traceback on a crash or when Python is blocked (eg. deadlock).
+* Only ASCII is supported. The ``backslashreplace`` error handler is used on
+  encoding.
+* Each string is limited to 500 characters.
+* Only the filename, the function name and the line number are
+  displayed. (no source code)
+* It is limited to 100 frames and 100 threads.
+* The order is reversed: the most recent call is shown first.
+
+By default, the Python traceback is written to :data:`sys.stderr`. To see
+tracebacks, applications must be run in the terminal. A log file can
+alternatively be passed to :func:`faulthandler.enable`.
+
+The module is implemented in C, so tracebacks can be dumped on a crash or when
+Python is deadlocked.
 
 faulthandler works on Python 2.6-3.5. It is part of Python standard library
 since Python 3.3: `faulthandler module
@@ -49,23 +56,33 @@ since Python 3.3: `faulthandler module
 Example
 =======
 
+.. highlight:: sh
+
 Example of a segmentation fault on Linux: ::
 
     $ python
     >>> import faulthandler
     >>> faulthandler.enable()
-    >>> faulthandler._sigsegv()
+    >>> import ctypes
+    >>> ctypes.string_at(0)
     Fatal Python error: Segmentation fault
 
-    Traceback (most recent call first):
+    Current thread 0x00007fea4a98c700 (most recent call first):
+      File "/usr/lib64/python2.7/ctypes/__init__.py", line 504 in string_at
       File "<stdin>", line 1 in <module>
-    Segmentation fault
+    Segmentation fault (core dumped)
 
 
 Nosetests and py.test
 =====================
 
-To use faulthandler in `nose tests <https://nose.readthedocs.org/en/latest/>`_ or `py.test <http://pytest.org/latest/>`_, you can use `nose-faulthandler <https://nose.readthedocs.org/en/latest/>`_ or `pytest-faulthandler <https://github.com/nicoddemus/pytest-faulthandler>`_ plugins.
+To use faulthandler in `nose tests <https://nose.readthedocs.org/en/latest/>`_,
+you can use the `nose-faulthandler <https://nose.readthedocs.org/en/latest/>`_
+plugin.
+
+To use it in `py.test <http://pytest.org/latest/>`_, you can use the
+`pytest-faulthandler <https://github.com/nicoddemus/pytest-faulthandler>`_
+plugin.
 
 
 Installation
@@ -151,67 +168,104 @@ install python-devel).
 faulthandler module API
 =======================
 
-There are 4 different ways to display the Python traceback:
+``faulthandler.version`` is the module version as a tuple: ``(major, minor)``.
+``faulthandler.__version__`` is the module version as a string (e.g.
+``"2.0"``).
 
-* enable(): on a crash
-* dump_traceback_later(): after a timeout (useful if your program hangs)
-* register(): by sending a signal (eg. SIGUSR1). It doesn't work on Windows.
-* dump_traceback(): explicitly
+Dumping the traceback
+---------------------
 
-Fault handler state (disabled by default):
+.. function:: dump_traceback(file=sys.stderr, all_threads=True)
 
-* enable(file=sys.stderr, all_threads=False): enable the fault handler
-* disable(): disable the fault handler
-* is_enabled(): get the status of the fault handler
+   Dump the tracebacks of all threads into *file*. If *all_threads* is
+   ``False``, dump only the current thread.
 
-Dump the current traceback:
 
-* dump_traceback(file=sys.stderr, all_threads=False): dump traceback of the
-  current thread, or of all threads if all_threads is True, into file
-* dump_traceback_later(timeout, repeat=False, file=sys.stderr,
-  exit=False): dump the traceback of all threads in timeout seconds, or each
-  timeout seconds if repeat is True. If the function is called twice, the new
-  call replaces previous parameters. Exit immediatly if exit is True.
-* cancel_dump_traceback_later(): cancel the previous call to
-  dump_traceback_later()
+Fault handler state
+-------------------
 
-dump_traceback_later() is implemented using the SIGALRM signal and the alarm()
-function: if the signal handler is called during a system call, the system call
-is interrupted (return EINTR). It it not available on Windows.
+.. function:: enable(file=sys.stderr, all_threads=True)
 
-enable() and dump_traceback_later() keep an internal reference to the output
-file. Use disable() and cancel_dump_traceback_later() to clear this reference.
+   Enable the fault handler: install handlers for the :const:`SIGSEGV`,
+   :const:`SIGFPE`, :const:`SIGABRT`, :const:`SIGBUS` and :const:`SIGILL`
+   signals to dump the Python traceback. If *all_threads* is ``True``,
+   produce tracebacks for every running thread. Otherwise, dump only the current
+   thread.
 
-Dump the traceback on an user signal:
+   The *file* must be kept open until the fault handler is disabled: see
+   :ref:`issue with file descriptors <faulthandler-fd>`.
 
-* register(signum, file=sys.stderr, all_threads=False, chain=False): register
-  an handler for the signal 'signum': dump the traceback of the current
-  thread, or of all threads if all_threads is True, into file". Call the
-  previous handler if chain is ``True``. Not available on Windows.
-* unregister(signum): unregister the handler of the signal 'signum' registered
-  by register(). Not available on Windows.
+.. function:: disable()
 
-Functions to test the fault handler:
+   Disable the fault handler: uninstall the signal handlers installed by
+   :func:`enable`.
 
-* ``_fatal_error(message)``: Exit Python with a fatal error, call Py_FatalError()
-  with message.
-* ``_read_null()``: read from the NULL pointer (raise SIGSEGV or SIGBUS depending
-  on the platform)
-* ``_sigabrt()``: raise a SIGABRT signal (Aborted)
-* ``_sigbus()``: raise a SIGBUS signal (Bus error)
-* ``_sigfpe()``: raise a SIGFPE signal (Floating point exception), do a division by
-  zero
-* ``_sigill()``: raise a SIGILL signal (Illegal instruction)
-* ``_sigsegv()``: raise a SIGSEGV signal (Segmentation fault), read memory from
-  NULL (address 0)
-* ``_stack_overflow()``: raise a stack overflow error. Not available on all
-  platforms.
+.. function:: is_enabled()
 
-register(), unregister(), sigbus() and sigill() are not available on all
-operation systems.
+   Check if the fault handler is enabled.
 
-faulthandler.version_info is the module version as a tuple: (major, minor),
-faulthandler.__version__ is the module version as a string (e.g. "2.0").
+
+Dumping the tracebacks after a timeout
+--------------------------------------
+
+.. function:: dump_traceback_later(timeout, repeat=False, file=sys.stderr, exit=False)
+
+   Dump the tracebacks of all threads, after a timeout of *timeout* seconds, or
+   every *timeout* seconds if *repeat* is ``True``.  If *exit* is ``True``, call
+   :c:func:`_exit` with status=1 after dumping the tracebacks.  (Note
+   :c:func:`_exit` exits the process immediately, which means it doesn't do any
+   cleanup like flushing file buffers.) If the function is called twice, the new
+   call replaces previous parameters and resets the timeout. The timer has a
+   sub-second resolution.
+
+   The *file* must be kept open until the traceback is dumped or
+   :func:`cancel_dump_traceback_later` is called: see :ref:`issue with file
+   descriptors <faulthandler-fd>`.
+
+   This function is implemented using the ``SIGALRM`` signal and the
+   ``alarm()`` function. If the signal handler is called during a system call,
+   the system call is interrupted and fails with ``EINTR``.
+
+   Not available on Windows.
+
+.. function:: cancel_dump_traceback_later()
+
+   Cancel the last call to :func:`dump_traceback_later`.
+
+
+Dumping the traceback on a user signal
+--------------------------------------
+
+.. function:: register(signum, file=sys.stderr, all_threads=True, chain=False)
+
+   Register a user signal: install a handler for the *signum* signal to dump
+   the traceback of all threads, or of the current thread if *all_threads* is
+   ``False``, into *file*. Call the previous handler if chain is ``True``.
+
+   The *file* must be kept open until the signal is unregistered by
+   :func:`unregister`: see :ref:`issue with file descriptors <faulthandler-fd>`.
+
+   Not available on Windows.
+
+.. function:: unregister(signum)
+
+   Unregister a user signal: uninstall the handler of the *signum* signal
+   installed by :func:`register`. Return ``True`` if the signal was registered,
+   ``False`` otherwise.
+
+   Not available on Windows.
+
+
+.. _faulthandler-fd:
+
+Issue with file descriptors
+---------------------------
+
+:func:`enable`, :func:`dump_traceback_later` and :func:`register` keep the
+file descriptor of their *file* argument. If the file is closed and its file
+descriptor is reused by a new file, or if :func:`os.dup2` is used to replace
+the file descriptor, the traceback will be written into a different file. Call
+these functions again each time that the file is replaced.
 
 
 Changelog
@@ -220,14 +274,15 @@ Changelog
 Version 2.5
 -----------
 
-* Issue #23433: Fix faulthandler._stack_overflow(). Fix undefined behaviour:
-  don't compare pointers. Use Py_uintptr_t type instead of void*. It fixes
-  test_faulthandler on Fedora 22 which now uses GCC 5.
+* Add support for the PYTHONFAULTHANDLER environment variable. Patch written
+  by Ionel Cristian Mărieș.
+* Issue #23433: Fix undefined behaviour in ``faulthandler._stack_overflow()``:
+  don't compare pointers, use the ``Py_uintptr_t`` type instead of ``void*``.
+  It fixes ``test_faulthandler`` on Fedora 22 which now uses GCC 5.
 * Drop support and Python 2.5 and 3.1: no Linux distribution use it anymore,
   and it becomes difficult to test them.
 * Add tox.ini to run tests with tox: it creates a virtual environment, compile
   and install faulthandler, and run unit tests.
-* Add support for the PYTHONFAULTHANDLER environment variable.
 
 Version 2.4 (2014-10-02)
 ------------------------
