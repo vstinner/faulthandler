@@ -41,6 +41,15 @@
 #  define PYINT_ASLONG PyInt_AsLong
 #endif
 
+/* If there is no thread state, PyThreadState_Get calls
+   Py_FatalError. To avoid this, we inline PyThreadState_Get here and
+   treat no thread as no error. */
+#if PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 2
+#  define GET_CURRENT_THREAD_STATE() ((PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current))
+#else
+#  define GET_CURRENT_THREAD_STATE() (_PyThreadState_Current)
+#endif
+
 /* cast size_t to int because write() takes an int on Windows
    (anyway, the length is smaller than 30 characters) */
 #define PUTS(fd, str) write(fd, str, (int)strlen(str))
@@ -309,7 +318,7 @@ faulthandler_fatal_error(int signum)
        PyGILState_GetThisThreadState(). */
     tstate = PyGILState_GetThisThreadState();
 #else
-    tstate = PyThreadState_Get();
+    tstate = GET_CURRENT_THREAD_STATE();
 #endif
 
     if (fatal_error.all_threads)
@@ -462,10 +471,12 @@ faulthandler_alarm(int signum)
 
     write(fault_alarm.fd, fault_alarm.header, fault_alarm.header_len);
 
-    /* PyThreadState_Get() doesn't give the state of the current thread if
-       the thread doesn't hold the GIL. Read the thread local storage (TLS)
-       instead: call PyGILState_GetThisThreadState(). */
-    tstate = PyGILState_GetThisThreadState();
+    /* Get the current active Python thread which holds the GIL.
+       This might be a different one than the current thread.
+       We want the active Python thread because the current thread
+       does not tell us anything; the signal could have been delivered
+       to any thread. */
+    tstate = GET_CURRENT_THREAD_STATE();
 
     errmsg = _Py_DumpTracebackThreads(fault_alarm.fd, fault_alarm.interp, tstate);
     ok = (errmsg == NULL);
@@ -632,14 +643,12 @@ faulthandler_user(int signum)
     if (!user->enabled)
         return;
 
-#ifdef WITH_THREAD
-    /* PyThreadState_Get() doesn't give the state of the current thread if
-       the thread doesn't hold the GIL. Read the thread local storage (TLS)
-       instead: call PyGILState_GetThisThreadState(). */
-    tstate = PyGILState_GetThisThreadState();
-#else
-    tstate = PyThreadState_Get();
-#endif
+    /* Get the current active Python thread which holds the GIL.
+       This might be a different one than the current thread.
+       We want the active Python thread because the current thread
+       does not tell us anything; the signal could have been delivered
+       to any thread. */
+    tstate = GET_CURRENT_THREAD_STATE();
 
     if (user->all_threads)
         _Py_DumpTracebackThreads(user->fd, user->interp, tstate);
