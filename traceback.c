@@ -1,5 +1,4 @@
-/* TODO: need to devise a better schema without messing with autotools */
-#if !defined(__QNX__) && !defined(MS_WINDOWS) && !defined(PYOS_OS2)
+#if __gnu_linux__
 #  include <sys/prctl.h>
 #endif
 
@@ -253,20 +252,16 @@ write_thread_id(int fd, PyThreadState *tstate, int is_current)
         PUTS(fd, "Thread 0x");
     dump_hexadecimal(fd, (unsigned long)tstate->thread_id, sizeof(unsigned long)*2);
 
-/* TODO: see comment at the beginning of file */
-#if !defined(__QNX__) && !defined(MS_WINDOWS) && !defined(PYOS_OS2)
-    PUTS(fd, " <");
+#if __gnu_linux__
     /* Linux only, get and print thread name */
     static char thread_name[16];
     if (0 == prctl(PR_GET_NAME, (unsigned long) thread_name, 0, 0, 0)) {
-        if (0 != strlen(thread_name))
+        if (0 != strlen(thread_name)) {
+            PUTS(fd, " <");
             PUTS(fd, thread_name);
-        else
-            PUTS(fd, "(thread name not set)");
-    } else {
-        PUTS(fd, "(cannot get thread name)");
+            PUTS(fd, ">");
+        }
     }
-    PUTS(fd, ">");
 #endif
 
     PUTS(fd, " (most recent call first):\n");
