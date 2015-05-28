@@ -1,3 +1,7 @@
+#if __gnu_linux__
+#  include <sys/prctl.h>
+#endif
+
 #include "Python.h"
 #include <frameobject.h>
 
@@ -247,6 +251,19 @@ write_thread_id(int fd, PyThreadState *tstate, int is_current)
     else
         PUTS(fd, "Thread 0x");
     dump_hexadecimal(fd, (unsigned long)tstate->thread_id, sizeof(unsigned long)*2);
+
+#if __gnu_linux__
+    /* Linux only, get and print thread name */
+    static char thread_name[16];
+    if (0 == prctl(PR_GET_NAME, (unsigned long) thread_name, 0, 0, 0)) {
+        if (0 != strlen(thread_name)) {
+            PUTS(fd, " <");
+            PUTS(fd, thread_name);
+            PUTS(fd, ">");
+        }
+    }
+#endif
+
     PUTS(fd, " (most recent call first):\n");
 }
 
