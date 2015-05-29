@@ -138,14 +138,14 @@ def expected_traceback(lineno1, lineno2, header, min_count=1):
 
 @contextmanager
 def temporary_filename():
-   filename = tempfile.mktemp()
-   try:
-       yield filename
-   finally:
-       try:
-           os.unlink(filename)
-       except OSError:
-           pass
+    filename = tempfile.mktemp()
+    try:
+        yield filename
+    finally:
+        try:
+            os.unlink(filename)
+        except OSError:
+            pass
 
 class FaultHandlerTests(unittest.TestCase):
     def get_output(self, code, filename=None, **kwargs):
@@ -176,7 +176,8 @@ class FaultHandlerTests(unittest.TestCase):
         return output.splitlines(), exitcode
 
     def check_fatal_error(self, code, line_number, name_regex,
-                          filename=None, all_threads=True, other_regex=None, **kwargs):
+                          filename=None, all_threads=True, other_regex=None,
+                          thread_name="python", **kwargs):
         """
         Check that the fault handler for fatal errors is enabled and check the
         traceback from the child process output.
@@ -184,7 +185,10 @@ class FaultHandlerTests(unittest.TestCase):
         Raise an error if the output doesn't match the expected format.
         """
         if all_threads:
-            header = 'Current thread XXX (most recent call first)'
+            if sys.platform == 'linux2' and thread_name is not None:
+                header = 'Current thread XXX <{}> (most recent call first)'.format(thread_name)
+            else:
+                header = 'Current thread XXX (most recent call first)'
         else:
             header = 'Stack (most recent call first)'
         regex = """
@@ -471,6 +475,41 @@ class FaultHandlerTests(unittest.TestCase):
         self.assertEqual(trace, expected)
         self.assertEqual(exitcode, 0)
 
+    @skipIf(sys.platform != 'linux2', 'thread name printing is only supported on Linux')
+    def test_thread_name_when_set(self):
+        self.check_fatal_error("""
+            import faulthandler
+            faulthandler.enable()
+            import ctypes
+            libc = ctypes.cdll.LoadLibrary("libc.so.6")
+            buf = ctypes.create_string_buffer("some_name")
+            # PR_SET_NAME
+            libc.prctl(15, buf)
+            faulthandler._sigsegv()
+            """,
+            8,
+            'Segmentation fault',
+            thread_name="some_name"
+        )
+
+    @skipIf(sys.platform != 'linux2', 'thread name printing is only supported on Linux')
+    def test_thread_name_when_empty(self):
+        " Will not print the <thread_name> if no name is set "
+        self.check_fatal_error("""
+            import faulthandler
+            faulthandler.enable()
+            import ctypes
+            libc = ctypes.cdll.LoadLibrary("libc.so.6")
+            buf = ctypes.create_string_buffer("")
+            # PR_SET_NAME
+            libc.prctl(15, buf)
+            faulthandler._sigsegv()
+            """,
+            8,
+            'Segmentation fault',
+            thread_name=None
+        )
+
     @skipIf(not HAVE_THREADS, 'need threads')
     def check_dump_traceback_threads(self, filename):
         """
@@ -518,13 +557,13 @@ class FaultHandlerTests(unittest.TestCase):
         else:
             lineno = 11
         regex = """
-            ^Thread 0x[0-9a-f]+ \(most recent call first\):
+            ^Thread 0x[0-9a-f]+ (\<\w{{1,16}}\>\s)?\(most recent call first\):
             (?:  File ".*threading.py", line [0-9]+ in [_a-z]+
             ){{1,3}}  File "<string>", line 24 in run
               File ".*threading.py", line [0-9]+ in _?_bootstrap_inner
               File ".*threading.py", line [0-9]+ in _?_bootstrap
 
-            Current thread XXX \(most recent call first\):
+            Current thread XXX (\<\w{{1,16}}\>\s)?\(most recent call first\):
               File "<string>", line {lineno} in dump
               File "<string>", line 29 in <module>$
             """
@@ -590,7 +629,7 @@ class FaultHandlerTests(unittest.TestCase):
             count = loops
             if repeat:
                 count *= 2
-            header = r'Timeout \(%s\)!\nCurrent thread XXX \(most recent call first\):\n' % timeout_str
+            header = r'Timeout \(%s\)!\nCurrent thread XXX (\<\w{1,16}\>\s)?\(most recent call first\):\n' % timeout_str
             regex = expected_traceback(12, 23, header, min_count=count)
             self.assertRegex(trace, regex)
         else:
@@ -692,7 +731,7 @@ class FaultHandlerTests(unittest.TestCase):
         trace = '\n'.join(trace)
         if not unregister:
             if all_threads:
-                regex = 'Current thread XXX \(most recent call first\):\n'
+                regex = 'Current thread XXX (\<\w{1,16}\>\s)?\(most recent call first\):\n'
             else:
                 regex = 'Stack \(most recent call first\):\n'
             regex = expected_traceback(7, 28, regex)
