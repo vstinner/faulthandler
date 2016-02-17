@@ -151,6 +151,11 @@ extern const char* _Py_DumpTracebackThreads(
     PyInterpreterState *interp,
     PyThreadState *current_thread);
 
+/* from time.c */
+extern char* timebuff(void);
+extern int timebuff_len;
+
+
 /* Get the file descriptor of a file by calling its fileno() method and then
    call its flush() method.
 
@@ -504,6 +509,9 @@ faulthandler_alarm(int signum)
     int ok;
 
     _Py_write_noraise(fault_alarm.fd,
+                      timebuff(), timebuff_len);
+
+    _Py_write_noraise(fault_alarm.fd,
                       fault_alarm.header, fault_alarm.header_len);
 
     /* PyThreadState_Get() doesn't give the state of the current thread if
@@ -542,11 +550,11 @@ format_timeout(double timeout)
 
     if (us != 0)
         PyOS_snprintf(buffer, sizeof(buffer),
-                      "Timeout (%lu:%02lu:%02lu.%06lu)!\n",
+                      " Timeout (%lu:%02lu:%02lu.%06lu)!\n",
                       hour, min, sec, us);
     else
         PyOS_snprintf(buffer, sizeof(buffer),
-                      "Timeout (%lu:%02lu:%02lu)!\n",
+                      " Timeout (%lu:%02lu:%02lu)!\n",
                       hour, min, sec);
 
     return strdup(buffer);
