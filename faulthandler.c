@@ -151,9 +151,27 @@ extern const char* _Py_DumpTracebackThreads(
     PyInterpreterState *interp,
     PyThreadState *current_thread);
 
-/* from time.c */
-extern char* timebuff(void);
-extern int timebuff_len;
+
+#define TIMEBUFF_LEN 21 // enough space to represent a "long long" time
+static char _timebuff[TIMEBUFF_LEN] = {0};
+
+/* Return a pointer to a static buffer containing a string representation of the current unix timestamp
+ */
+char*
+timebuff(void)
+{
+    time_t value = time(NULL);
+
+    char * cur = _timebuff + TIMEBUFF_LEN - 1;
+    *cur = '\0';
+
+    while (value > 0 && cur > _timebuff) {
+        cur--;
+        *cur = (value % 10) + '0';
+        value = value / 10;
+    }
+    return cur;
+}
 
 
 /* Get the file descriptor of a file by calling its fileno() method and then
@@ -509,10 +527,14 @@ faulthandler_alarm(int signum)
     int ok;
 
     _Py_write_noraise(fault_alarm.fd,
-                      timebuff(), timebuff_len-1);
+                      fault_alarm.header, fault_alarm.header_len);
+
+    const char* timestr = timebuff();
+    _Py_write_noraise(fault_alarm.fd,
+                      timestr, strlen(timestr));
 
     _Py_write_noraise(fault_alarm.fd,
-                      fault_alarm.header, fault_alarm.header_len);
+                      "!\n", 2);
 
     /* PyThreadState_Get() doesn't give the state of the current thread if
        the thread doesn't hold the GIL. Read the thread local storage (TLS)
@@ -550,11 +572,11 @@ format_timeout(double timeout)
 
     if (us != 0)
         PyOS_snprintf(buffer, sizeof(buffer),
-                      " Timeout (%lu:%02lu:%02lu.%06lu)!\n",
+                      "Timeout (%lu:%02lu:%02lu.%06lu) at UTC epoch ",
                       hour, min, sec, us);
     else
         PyOS_snprintf(buffer, sizeof(buffer),
-                      " Timeout (%lu:%02lu:%02lu)!\n",
+                      "Timeout (%lu:%02lu:%02lu) at UTC epoch ",
                       hour, min, sec);
 
     return strdup(buffer);

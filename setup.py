@@ -87,7 +87,7 @@ class GeneratePTH(Command):
 
 VERSION = "2.5"
 
-FILES = ['faulthandler.c', 'traceback.c', 'time.c']
+FILES = ['faulthandler.c', 'traceback.c']
 
 CLASSIFIERS = [
     'Development Status :: 5 - Production/Stable',
