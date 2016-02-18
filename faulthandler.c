@@ -509,7 +509,7 @@ faulthandler_alarm(int signum)
     int ok;
 
     _Py_write_noraise(fault_alarm.fd,
-                      timebuff(), timebuff_len);
+                      timebuff(), timebuff_len-1);
 
     _Py_write_noraise(fault_alarm.fd,
                       fault_alarm.header, fault_alarm.header_len);
