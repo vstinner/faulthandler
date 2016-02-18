@@ -62,6 +62,8 @@ floattime(void)
 int timebuff_len = TIMEBUFF_LEN;
 static char _timebuff[TIMEBUFF_LEN] = {0};
 
+/* Return a pointer to a static buffer containing a string representation of the current unix timestamp
+ */
 char*
 timebuff(void)
 {
