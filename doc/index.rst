@@ -43,7 +43,7 @@ faulthandler works on Python 2.6-3.5. It is part of Python standard library
 since Python 3.3: `faulthandler module
 <http://docs.python.org/dev/library/faulthandler.html>`_
 
-* `faulthandler website <http://faulthandler.readthedocs.org/>`_
+* `faulthandler website <http://faulthandler.readthedocs.io/>`_
   (this page)
 * `faulthandler project at github
   <https://github.com/haypo/faulthandler/>`_: source code, bug tracker
@@ -76,8 +76,8 @@ Example of a segmentation fault on Linux: ::
 Nosetests and py.test
 =====================
 
-To use faulthandler in `nose tests <https://nose.readthedocs.org/en/latest/>`_,
-you can use the `nose-faulthandler <https://nose.readthedocs.org/en/latest/>`_
+To use faulthandler in `nose tests <https://nose.readthedocs.io/en/latest/>`_,
+you can use the `nose-faulthandler <https://nose.readthedocs.io/en/latest/>`_
 plugin.
 
 To use it in `py.test <http://pytest.org/latest/>`_, you can use the
@@ -305,7 +305,7 @@ Version 2.4 (2014-10-02)
 ------------------------
 
 * Add a new documentation written with Sphinx used to built a new website:
-  http://faulthandler.readthedocs.org/
+  http://faulthandler.readthedocs.io/
 * Python issue #19306: Add extra hints to faulthandler stack dumps that they
   are upside down.
 * Python issue #15463: the faulthandler module truncates strings to 500
