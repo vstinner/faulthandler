@@ -28,7 +28,7 @@ faulthandler is implemented in C using signal handlers to be able to dump a
 traceback on a crash or when Python is blocked (eg. deadlock).
 
 Website:
-http://faulthandler.readthedocs.io/
+https://faulthandler.readthedocs.io/
 
 faulthandler is part of Python since Python 3.3:
 http://docs.python.org/dev/library/faulthandler.html
