@@ -43,7 +43,7 @@ faulthandler works on Python 2.6-3.5. It is part of Python standard library
 since Python 3.3: `faulthandler module
 <http://docs.python.org/dev/library/faulthandler.html>`_
 
-* `faulthandler website <http://faulthandler.readthedocs.io/>`_
+* `faulthandler website <https://faulthandler.readthedocs.io/>`_
   (this page)
 * `faulthandler project at github
   <https://github.com/haypo/faulthandler/>`_: source code, bug tracker
@@ -305,7 +305,7 @@ Version 2.4 (2014-10-02)
 ------------------------
 
 * Add a new documentation written with Sphinx used to built a new website:
-  http://faulthandler.readthedocs.io/
+  https://faulthandler.readthedocs.io/
 * Python issue #19306: Add extra hints to faulthandler stack dumps that they
   are upside down.
 * Python issue #15463: the faulthandler module truncates strings to 500
