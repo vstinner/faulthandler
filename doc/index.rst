@@ -277,8 +277,8 @@ these functions again each time that the file is replaced.
 Changelog
 =========
 
-Version 2.6
------------
+Version 2.6 (2017-03-22)
+------------------------
 
 * Add support for the ``PYTHONFAULTHANDLER`` environment variable. Patch
   written by Ionel Cristian Mărieș.
