@@ -4,8 +4,9 @@
 #
 #  - update VERSION: faulthandler.c, setup.py, doc/conf.py
 #  - update the changelog: doc/index.rst
-#  - run tests with run tox
-#  - run tests on Linux, Windows, FreeBSD and Mac OS X
+#  - run tests on Linux: tox
+#  - run tests on Windows: \python27\python -m tox
+#  - test maybe also FreeBSD and Mac OS X
 #  - set release date in the changelog: doc/index.rst
 #  - git commit -a
 #  - git push
