@@ -8,6 +8,9 @@
 #  - run tests on Linux, Windows, FreeBSD and Mac OS X
 #  - set release date in the changelog: doc/index.rst
 #  - git commit -a
+#  - git push
+#  - check Travis CI status:
+#    https://travis-ci.org/haypo/faulthandler
 #
 # Release a new version:
 #
