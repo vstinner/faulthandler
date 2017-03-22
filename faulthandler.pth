@@ -1,0 +1,1 @@
+import os, sys;exec('if os.environ.get(\'PYTHONFAULTHANDLER\'):\n try:\n  import faulthandler\n  faulthandler.enable()\n except Exception as exc:\n  sys.stderr.write("Failed to enable faulthandler: %s\\n" % exc)\n')

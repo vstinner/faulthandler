@@ -50,6 +50,24 @@ from setuptools.command.develop import develop
 from setuptools.command.easy_install import easy_install
 
 
+VERSION = "2.6"
+
+FILES = ['faulthandler.c', 'traceback.c']
+
+CLASSIFIERS = [
+    'Development Status :: 5 - Production/Stable',
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: BSD License',
+    'Operating System :: OS Independent',
+    'Natural Language :: English',
+    'Programming Language :: C',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3',
+    'Topic :: Software Development :: Debuggers',
+    'Topic :: Software Development :: Libraries :: Python Modules',
+]
+
+
 def python_implementation():
     if hasattr(sys, 'implementation'):
         # PEP 421, Python 3.3
@@ -69,22 +87,47 @@ if python_implementation().lower() != 'cpython':
     sys.exit(1)
 
 
-VERSION = "2.6"
+class BuildWithPTH(build):
+    def run(self):
+        build.run(self)
+        path = path_join(dirname(__file__), 'faulthandler.pth')
+        dest = path_join(self.build_lib, basename(path))
+        self.copy_file(path, dest)
 
-FILES = ['faulthandler.c', 'traceback.c']
 
-CLASSIFIERS = [
-    'Development Status :: 5 - Production/Stable',
-    'Intended Audience :: Developers',
-    'License :: OSI Approved :: BSD License',
-    'Operating System :: OS Independent',
-    'Natural Language :: English',
-    'Programming Language :: C',
-    'Programming Language :: Python',
-    'Programming Language :: Python :: 3',
-    'Topic :: Software Development :: Debuggers',
-    'Topic :: Software Development :: Libraries :: Python Modules',
-]
+class EasyInstallWithPTH(easy_install):
+    def run(self):
+        easy_install.run(self)
+        path = path_join(dirname(__file__), 'faulthandler.pth')
+        dest = path_join(self.install_dir, basename(path))
+        self.copy_file(path, dest)
+
+
+class DevelopWithPTH(develop):
+    def run(self):
+        develop.run(self)
+        path = path_join(dirname(__file__), 'faulthandler.pth')
+        dest = path_join(self.install_dir, basename(path))
+        self.copy_file(path, dest)
+
+
+class GeneratePTH(Command):
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        with open(path_join(dirname(__file__), 'faulthandler.pth'), 'w') as fh:
+            with open(path_join(dirname(__file__), 'faulthandler.embed')) as sh:
+                fh.write(
+                    'import os, sys;'
+                    'exec(%r)' % sh.read().replace('    ', ' ')
+                )
+
 
 with open('README.rst') as f:
     long_description = f.read().strip()
@@ -100,6 +143,12 @@ options = {
     'author_email': 'victor.stinner@gmail.com',
     'ext_modules': [Extension('faulthandler', FILES)],
     'classifiers': CLASSIFIERS,
+    'cmdclass': {
+        'build': BuildWithPTH,
+        'easy_install': EasyInstallWithPTH,
+        'develop': DevelopWithPTH,
+        'genpth': GeneratePTH,
+    },
 }
 
 setup(**options)
