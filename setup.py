@@ -27,6 +27,7 @@
 
 from __future__ import with_statement
 
+import platform
 import sys
 from os.path import join as path_join
 from os.path import basename
@@ -38,8 +39,23 @@ from setuptools import setup
 from setuptools.command.develop import develop
 from setuptools.command.easy_install import easy_install
 
+
+def python_implementation():
+    if hasattr(sys, 'implementation'):
+        # PEP 421, Python 3.3
+        return sys.implementation.name
+    else:
+        return platform.python_implementation()
+
+
 if sys.version_info >= (3, 3):
     print("ERROR: faulthandler is a builtin module since Python 3.3")
+    sys.exit(1)
+
+
+if python_implementation().lower() != 'cpython':
+    print("ERROR: faulthandler is written for CPython, it doesn't work on %s"
+          % python_implementation())
     sys.exit(1)
 
 
