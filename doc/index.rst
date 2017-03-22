@@ -277,11 +277,15 @@ these functions again each time that the file is replaced.
 Changelog
 =========
 
-Version 2.5 (2017-03-22)
-------------------------
+Version 2.6
+-----------
 
 * Add support for the ``PYTHONFAULTHANDLER`` environment variable. Patch
   written by Ionel Cristian Mărieș.
+
+Version 2.5 (2017-03-22)
+------------------------
+
 * Issue #23433: Fix undefined behaviour in ``faulthandler._stack_overflow()``:
   don't compare pointers, use the ``Py_uintptr_t`` type instead of ``void*``.
   It fixes ``test_faulthandler`` on Fedora 22 which now uses GCC 5.
