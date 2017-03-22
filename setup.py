@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 
-# Todo list to prepare a release:
-#  - set VERSION: faulthandler.c, setup.py, doc/conf.py, doc/index.rst
+# Prepare a release:
+#
+#  - update VERSION: faulthandler.c, setup.py, doc/conf.py, doc/index.rst
 #  - update the changelog: doc/index.rst
 #  - run tests with run tox
-#  - run tests on Linux, Windows, FreeBSD and Mac OS X:
-#    test at least Python 2.7
+#  - run tests on Linux, Windows, FreeBSD and Mac OS X
 #  - set release date in the changelog: doc/index.rst
 #  - git commit -a
+#
+# Release a new version:
+#
 #  - git tag -a faulthandler-x.y -m "tag version x.y"
 #  - git push
 #  - git push --tags
@@ -15,11 +18,11 @@
 #  - Build 32-bit and 64-bit wheel packages on Windows:
 #
 #    - python2.7 setup.py bdist_wheel upload
-#    - python3.2 setup.py bdist_wheel upload
 #
 #  - update the website
 #
 # After the release:
+#
 #  - increment VERSION: faulthandler.c, setup.py, doc/conf.py, doc/index.rst
 #  - git commit -a
 #  - git push
