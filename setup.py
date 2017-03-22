@@ -2,7 +2,7 @@
 
 # Prepare a release:
 #
-#  - update VERSION: faulthandler.c, setup.py, doc/conf.py, doc/index.rst
+#  - update VERSION: faulthandler.c, setup.py, doc/conf.py
 #  - update the changelog: doc/index.rst
 #  - run tests with run tox
 #  - run tests on Linux, Windows, FreeBSD and Mac OS X
@@ -17,7 +17,7 @@
 #  - On Linux:
 #
 #    * rm -rf dist/
-#    * python3 setup.py sdist bdist_wheel
+#    * python2 setup.py sdist
 #    * twine upload dist/*
 #
 #  - Build 32-bit and 64-bit wheel packages on Windows:
@@ -27,7 +27,7 @@
 #
 # After the release:
 #
-#  - increment VERSION: faulthandler.c, setup.py, doc/conf.py, doc/index.rst
+#  - increment VERSION: faulthandler.c, setup.py, doc/conf.py
 #  - git commit -a
 #  - git push
 
@@ -65,7 +65,7 @@ if python_implementation().lower() != 'cpython':
     sys.exit(1)
 
 
-VERSION = "2.5"
+VERSION = "2.6"
 
 FILES = ['faulthandler.c', 'traceback.c']
 
