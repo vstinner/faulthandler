@@ -275,8 +275,8 @@ these functions again each time that the file is replaced.
 Changelog
 =========
 
-Version 2.5
------------
+Version 2.5 (2017-03-22)
+------------------------
 
 * Issue #23433: Fix undefined behaviour in ``faulthandler._stack_overflow()``:
   don't compare pointers, use the ``Py_uintptr_t`` type instead of ``void*``.
