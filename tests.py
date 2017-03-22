@@ -341,23 +341,6 @@ class FaultHandlerTests(unittest.TestCase):
             'Segmentation fault',
             all_threads=False)
 
-    def test_enable_env_var(self):
-        output, exitcode = self.get_output("""
-            import faulthandler
-            print(faulthandler.is_enabled())
-            """,
-            env=dict(os.environ, PYTHONFAULTHANDLER='x'))
-        self.assertEqual(output, ["True"])
-        self.assertEqual(exitcode, 0)
-
-        output, exitcode = self.get_output("""
-            import faulthandler
-            print(faulthandler.is_enabled())
-            """,
-            env=dict(os.environ, PYTHONFAULTHANDLER=''))
-        self.assertEqual(output, ["False"])
-        self.assertEqual(exitcode, 0)
-
     def test_disable(self):
         code = """
             import faulthandler

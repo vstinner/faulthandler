@@ -17,9 +17,6 @@ memory on the stack, even on stack overflow (not available on Windows).
 
 Import the module and call faulthandler.enable() to enable the fault handler.
 
-Alternatively you can set the PYTHONFAULTHANDLER environment variable to a
-non-empty value.
-
 The fault handler is called on catastrophic cases and so it can only use
 signal-safe functions (eg. it doesn't allocate memory on the heap). That's why
 the traceback is limited: it only supports ASCII encoding (use the

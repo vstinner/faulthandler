@@ -2,7 +2,6 @@ include AUTHORS
 include COPYING
 include MANIFEST.in
 include tests.py
-include faulthandler.pth
 include TODO
 include doc/Makefile
 include doc/conf.py

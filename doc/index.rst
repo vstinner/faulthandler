@@ -10,9 +10,7 @@ Fault handler
 This module contains functions to dump Python tracebacks explicitly, on a fault,
 after a timeout, or on a user signal. Call :func:`faulthandler.enable` to
 install fault handlers for the :const:`SIGSEGV`, :const:`SIGFPE`,
-:const:`SIGABRT`, :const:`SIGBUS`, and :const:`SIGILL` signals. You can also
-enable them at startup by setting the :envvar:`PYTHONFAULTHANDLER` environment
-variable.
+:const:`SIGABRT`, :const:`SIGBUS`, and :const:`SIGILL` signals.
 
 The fault handler is compatible with system fault handlers like Apport or the
 Windows fault handler. The module uses an alternative stack for signal handlers
@@ -280,8 +278,6 @@ Changelog
 Version 2.5
 -----------
 
-* Add support for the ``PYTHONFAULTHANDLER`` environment variable. Patch
-  written by Ionel Cristian Mărieș.
 * Issue #23433: Fix undefined behaviour in ``faulthandler._stack_overflow()``:
   don't compare pointers, use the ``Py_uintptr_t`` type instead of ``void*``.
   It fixes ``test_faulthandler`` on Fedora 22 which now uses GCC 5.
