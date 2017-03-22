@@ -295,6 +295,7 @@ Version 2.5
   to test these versions.
 * Add tox.ini to run tests with tox: it creates a virtual environment, compile
   and install faulthandler, and run unit tests.
+* Add Travis YAML configuration.
 
 Version 2.4 (2014-10-02)
 ------------------------
