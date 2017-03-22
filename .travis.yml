@@ -2,13 +2,10 @@ language: python
 python:
     - 2.7
 install:
-    - python -m pip list
-    - python -m pip install -U setuptools
     - python setup.py install
-    - python -m pip list
-    - rm -rf build/
+    - rm -rf faulthandler.egg-info/
 script:
-    - python tests.py
+    - python tests.py -v
 notifications:
   email:
     - victor.stinner@gmail.com
