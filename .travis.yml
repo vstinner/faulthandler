@@ -6,6 +6,7 @@ install:
     - python -m pip install -U setuptools
     - python setup.py install
     - python -m pip list
+    - rm -rf build/
 script:
     - python tests.py
 notifications:
