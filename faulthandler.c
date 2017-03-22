@@ -41,11 +41,6 @@
 #  define PYINT_ASLONG PyInt_AsLong
 #endif
 
-#if PY_MAJOR_VERSION == 2 && PY_MINOR_VERSION < 7
-   /* _PyVerify_fd() was added to Python 2.7 */
-#  define _PyVerify_fd(fd) 1
-#endif
-
 /* defined in traceback.c */
 extern Py_ssize_t _Py_write_noraise(int fd, const char *buf, size_t count);
 
@@ -183,7 +178,7 @@ faulthandler_get_fileno(PyObject **file_ptr)
         fd = PYINT_ASLONG(file);
         if (fd == -1 && PyErr_Occurred())
             return -1;
-        if (fd < 0 || fd > INT_MAX || !_PyVerify_fd(fd)) {
+        if (fd < 0 || fd > INT_MAX) {
             PyErr_SetString(PyExc_ValueError,
                             "file is not a valid file descripter");
             return -1;
