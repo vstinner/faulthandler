@@ -14,7 +14,6 @@
 #  - python setup.py register sdist upload
 #  - Build 32-bit and 64-bit wheel packages on Windows:
 #
-#    - python2.6 setup.py bdist_wheel upload
 #    - python2.7 setup.py bdist_wheel upload
 #    - python3.2 setup.py bdist_wheel upload
 #

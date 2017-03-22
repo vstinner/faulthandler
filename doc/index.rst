@@ -296,8 +296,8 @@ Version 2.5
 - Issue #23566: enable(), register(), dump_traceback() and
   dump_traceback_later() functions now accept file descriptors. Patch by Wei
   Wu.
-* Drop support and Python 2.5 and 3.1: no Linux distribution use it anymore,
-  and it becomes difficult to test them.
+* Drop support and Python 2.5, 2.6 and 3.1: no Linux distribution use these
+  versions anymore, and it becomes difficult to test them.
 * Add tox.ini to run tests with tox: it creates a virtual environment, compile
   and install faulthandler, and run unit tests.
 

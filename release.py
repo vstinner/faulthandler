@@ -8,7 +8,7 @@ a version number like "2.O".
 Requirements:
 
 - The Windows SDK 7.0 is required to build wheel packages on Windows
-- Python 2.6, 2.7 and 3.2
+- Python 2.7 and 3.2
 """
 import contextlib
 import optparse
@@ -23,7 +23,6 @@ import textwrap
 
 PROJECT = 'faulthandler'
 PYTHON_VERSIONS = (
-    (2, 6),
     (2, 7),
     (3, 2),
 )
