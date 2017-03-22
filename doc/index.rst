@@ -88,8 +88,8 @@ plugin.
 Installation
 ============
 
-faulthandler supports Python 2.6, 2.7 and 3.2. It may also support Python 2.5
-and 3.1, but these versions are no more officially supported.
+faulthandler supports Python 2.7. It may also support Python 2.5, 2.6,
+3.1 and 3.2, but these versions are no more officially supported.
 
 Install faulthandler on Windows using pip
 -----------------------------------------
@@ -110,12 +110,6 @@ Procedure to install faulthandler on Windows:
 * Install faulthandler::
 
   \Python27\python.exe -m pip install faulthandler
-
-.. note::
-
-   Only wheel packages for Python 2.7 are currently distributed on the
-   Cheeseshop (PyPI). If you need wheel packages for other Python versions,
-   please ask.
 
 
 Linux packages
@@ -296,8 +290,9 @@ Version 2.5
 - Issue #23566: enable(), register(), dump_traceback() and
   dump_traceback_later() functions now accept file descriptors. Patch by Wei
   Wu.
-* Drop support and Python 2.5, 2.6 and 3.1: no Linux distribution use these
-  versions anymore, and it becomes difficult to test them.
+* Drop support and Python 2.5, 2.6, 3.1 and 3.2: only support Python 2.7.
+  No Linux distribution use these versions anymore, so it becomes difficult
+  to test these versions.
 * Add tox.ini to run tests with tox: it creates a virtual environment, compile
   and install faulthandler, and run unit tests.
 
