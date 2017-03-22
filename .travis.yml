@@ -1,0 +1,8 @@
+language: python
+python:
+    - 2.7
+script:
+    - python tests.py
+notifications:
+  email:
+    - victor.stinner@gmail.com
