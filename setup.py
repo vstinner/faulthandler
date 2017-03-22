@@ -14,12 +14,16 @@
 #  - git tag -a faulthandler-x.y -m "tag version x.y"
 #  - git push
 #  - git push --tags
-#  - python setup.py register sdist upload
+#  - On Linux:
+#
+#    * rm -rf dist/
+#    * python3 setup.py sdist bdist_wheel
+#    * twine upload dist/*
+#
 #  - Build 32-bit and 64-bit wheel packages on Windows:
 #
-#    - python2.7 setup.py bdist_wheel upload
-#
-#  - update the website
+#    * \python27\python setup.py bdist_wheel upload
+#    * \python27-32\python setup.py bdist_wheel upload
 #
 # After the release:
 #
