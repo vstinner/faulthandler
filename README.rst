@@ -35,12 +35,10 @@ see the traceback, or pass a file to faulthandler.enable().
 faulthandler is implemented in C using signal handlers to be able to dump a
 traceback on a crash or when Python is blocked (eg. deadlock).
 
-This module is the backport for CPython 2.7. For PyPy, faulthandler is builtin
-since PyPy 5.5: use ``pypy -X faulthandler``.
+This module is the backport for CPython 2.7. faulthandler is part of CPython
+standard library since CPython 3.3: `faulthandler
+<http://docs.python.org/dev/library/faulthandler.html>`_. For PyPy,
+faulthandler is builtin since PyPy 5.5: use ``pypy -X faulthandler``.
 
 Website:
 https://faulthandler.readthedocs.io/
-
-faulthandler is part of Python since Python 3.3:
-http://docs.python.org/dev/library/faulthandler.html
-
