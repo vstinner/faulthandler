@@ -84,6 +84,7 @@ if sys.version_info >= (3, 3):
 if python_implementation().lower() != 'cpython':
     print("ERROR: faulthandler is written for CPython, it doesn't work on %s"
           % python_implementation())
+    print("faulthandler builtin PyPy since PyPy 5.5: use pypy -X faulthandler")
     sys.exit(1)
 
 

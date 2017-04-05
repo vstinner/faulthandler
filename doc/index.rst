@@ -39,9 +39,12 @@ alternatively be passed to :func:`faulthandler.enable`.
 The module is implemented in C, so tracebacks can be dumped on a crash or when
 Python is deadlocked.
 
-faulthandler works on Python 2.6-3.5. It is part of Python standard library
-since Python 3.3: `faulthandler module
-<http://docs.python.org/dev/library/faulthandler.html>`_
+This module is the backport for CPython 2.7. It is part of Python standard
+library since CPython 3.3: `faulthandler module
+<http://docs.python.org/dev/library/faulthandler.html>`_. For PyPy,
+faulthandler is builtin since PyPy 5.5: use ``pypy -X faulthandler``.
+
+faulthandler works on CPython 2.6-3.5.
 
 * `faulthandler website <https://faulthandler.readthedocs.io/>`_
   (this page)
