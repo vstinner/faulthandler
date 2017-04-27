@@ -277,6 +277,54 @@ the file descriptor, the traceback will be written into a different file. Call
 these functions again each time that the file is replaced.
 
 
+Differences with stdlib faulthandler
+====================================
+
+faulthandler is now part of CPython standard library since version 3.3.
+CPython 3.3 and newer got enhancements which are not available on CPython 2.7
+and so this faulthandler backport for CPython 2.7 has limitations:
+
+faulthandler signal handler
+---------------------------
+
+The faulthandler signal handler and the ``dump_traceback()`` function call
+``PyGILState_GetThisThreadState()`` to get the Python thread state of the
+current thread even if it doesn't hold the GIL. This function uses a *Thread
+Local Storage* (TLS) variable. Since CPython 3.2, TLS use native functions:
+
+* UNIX/BSD: ``pthread_getspecific()``, ``pthread_setspecific()``
+* Windows: ``TlsGetValue()``, ``TlsSetValue()``
+
+But CPython 2.7 uses its own implementation of TLS using a single-linked list
+and a lock. Locks are not signal-safe: using a lock in a signal handler may
+work or may block forever.
+
+
+dump_traceback_later()
+----------------------
+
+dump_traceback_later() is implemented with ``alarm(seconds)`` on CPython 2.7
+and so the timer has a resolution of 1 second, whereas CPython 3 uses a
+"watchdog" thread and a lock with a timeout
+(``PyThread_acquire_lock_timed()``) with a resolution of 1 microseconds.
+
+``alarm()`` requires to set a signal handler for ``SIGALRM`` whereas the
+application may want to use this signal for a different purpose. Raising the
+``SIGALRM`` signal has side effects like interrupting the current syscall which
+would fail with ``EINTR`` error whereas Python 2.7 has a bad support of
+``EINTR`` errors. CPython 3.5 now automatically retries syscalls failing with
+``EINTR``: see `PEP 475 -- Retry system calls failing with EINTR
+<https://www.python.org/dev/peps/pep-0475/>`_.
+
+.. note:
+
+   The CPython 3 watchdog thread ignores all signals using::
+
+    sigset_t set;
+    sigfillset(&set);
+    pthread_sigmask(SIG_SETMASK, &set, NULL);
+
+
 Changelog
 =========
 
