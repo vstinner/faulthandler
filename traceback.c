@@ -86,11 +86,12 @@ dump_decimal(int fd, int value)
 
    This function is signal safe. */
 
-static void
-dump_hexadecimal(int fd, unsigned long value, int width)
+void
+_Py_dump_hexadecimal(int fd, unsigned long value, size_t bytes)
 {
     const char *hexdigits = "0123456789abcdef";
-    int len;
+    size_t width = bytes * 2;
+    size_t len;
     char buffer[sizeof(unsigned long) * 2 + 1];
     len = 0;
     do {
@@ -141,7 +142,7 @@ dump_ascii(int fd, PyObject *text)
         }
         else if (ch <= 0xff) {
             PUTS(fd, "\\x");
-            dump_hexadecimal(fd, ch, 2);
+            _Py_dump_hexadecimal(fd, ch, 1);
         }
         else
 #ifdef Py_UNICODE_WIDE
@@ -149,12 +150,12 @@ dump_ascii(int fd, PyObject *text)
 #endif
         {
             PUTS(fd, "\\u");
-            dump_hexadecimal(fd, ch, 4);
+            _Py_dump_hexadecimal(fd, ch, 2);
 #ifdef Py_UNICODE_WIDE
         }
         else {
             PUTS(fd, "\\U");
-            dump_hexadecimal(fd, ch, 8);
+            _Py_dump_hexadecimal(fd, ch, 4);
 #endif
         }
     }
@@ -167,7 +168,7 @@ dump_ascii(int fd, PyObject *text)
         }
         else {
             PUTS(fd, "\\x");
-            dump_hexadecimal(fd, ch, 2);
+            _Py_dump_hexadecimal(fd, ch, 1);
         }
     }
 #endif
@@ -268,7 +269,7 @@ write_thread_id(int fd, PyThreadState *tstate, int is_current)
         PUTS(fd, "Current thread 0x");
     else
         PUTS(fd, "Thread 0x");
-    dump_hexadecimal(fd, (unsigned long)tstate->thread_id, sizeof(unsigned long)*2);
+    _Py_dump_hexadecimal(fd, (unsigned long)tstate->thread_id, sizeof(unsigned long));
 
 #ifdef __gnu_linux__
     /* Linux only, get and print thread name */
