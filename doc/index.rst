@@ -436,7 +436,7 @@ Other changes:
 * register() uses sigaction() SA_RESTART flag to try to not interrupt the
   current system call
 * The fault handler calls the previous signal handler, using sigaction()
-  SA_NODEFER flag to call it immediatly
+  SA_NODEFER flag to call it immediately
 * enable() raises an OSError if it was not possible to register a signal
   handler
 * Set module size to 0, instead of -1, to be able to unload the module with
