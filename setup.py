@@ -20,7 +20,7 @@
 #  - git push --tags
 #  - On Linux:
 #
-#    * rm -rf dist/
+#    * git clean -fdx
 #    * python2 setup.py sdist
 #    * twine upload dist/*
 #
@@ -50,7 +50,7 @@ from setuptools.command.develop import develop
 from setuptools.command.easy_install import easy_install
 
 
-VERSION = "3.0"
+VERSION = "3.1"
 
 FILES = ['faulthandler.c', 'traceback.c']
 
