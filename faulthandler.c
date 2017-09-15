@@ -129,7 +129,7 @@ static fault_handler_t faulthandler_handlers[] = {
        handler fails in faulthandler_fatal_error() */
     {SIGSEGV, 0, "Segmentation fault", }
 };
-static const unsigned char faulthandler_nsignals = \
+static const size_t faulthandler_nsignals = \
     sizeof(faulthandler_handlers) / sizeof(faulthandler_handlers[0]);
 
 #ifdef HAVE_SIGALTSTACK
@@ -307,6 +307,19 @@ faulthandler_dump_traceback_py(PyObject *self,
     Py_RETURN_NONE;
 }
 
+static void
+faulthandler_disable_fatal_handler(fault_handler_t *handler)
+{
+    if (!handler->enabled)
+        return;
+    handler->enabled = 0;
+#ifdef HAVE_SIGACTION
+    (void)sigaction(handler->signum, &handler->previous, NULL);
+#else
+    (void)signal(handler->signum, handler->previous);
+#endif
+}
+
 
 /* Handler for SIGSEGV, SIGFPE, SIGABRT, SIGBUS and SIGILL signals.
 
@@ -325,7 +338,7 @@ static void
 faulthandler_fatal_error(int signum)
 {
     const int fd = fatal_error.fd;
-    unsigned int i;
+    size_t i;
     fault_handler_t *handler = NULL;
     int save_errno = errno;
 
@@ -343,12 +356,7 @@ faulthandler_fatal_error(int signum)
     }
 
     /* restore the previous handler */
-#ifdef HAVE_SIGACTION
-    (void)sigaction(signum, &handler->previous, NULL);
-#else
-    (void)signal(signum, handler->previous);
-#endif
-    handler->enabled = 0;
+    faulthandler_disable_fatal_handler(handler);
 
     PUTS(fd, "Fatal Python error: ");
     PUTS(fd, handler->name);
@@ -369,6 +377,54 @@ faulthandler_fatal_error(int signum)
        sigaction() thanks to SA_NODEFER flag, otherwise it is deferred */
     raise(signum);
 }
+
+#ifdef MS_WINDOWS
+extern void _Py_dump_hexadecimal(int fd, unsigned long value, size_t bytes);
+
+static LONG WINAPI
+faulthandler_exc_handler(struct _EXCEPTION_POINTERS *exc_info)
+{
+    const int fd = fatal_error.fd;
+    DWORD code = exc_info->ExceptionRecord->ExceptionCode;
+
+    PUTS(fd, "Windows exception: ");
+    switch (code)
+    {
+    /* only format most common errors */
+    case EXCEPTION_ACCESS_VIOLATION: PUTS(fd, "access violation"); break;
+    case EXCEPTION_FLT_DIVIDE_BY_ZERO: PUTS(fd, "float divide by zero"); break;
+    case EXCEPTION_FLT_OVERFLOW: PUTS(fd, "float overflow"); break;
+    case EXCEPTION_INT_DIVIDE_BY_ZERO: PUTS(fd, "int divide by zero"); break;
+    case EXCEPTION_INT_OVERFLOW: PUTS(fd, "integer overflow"); break;
+    case EXCEPTION_IN_PAGE_ERROR: PUTS(fd, "page error"); break;
+    case EXCEPTION_STACK_OVERFLOW: PUTS(fd, "stack overflow"); break;
+    default:
+        PUTS(fd, "code 0x");
+        _Py_dump_hexadecimal(fd, code, sizeof(DWORD));
+    }
+    PUTS(fd, "\n\n");
+
+    if (code == EXCEPTION_ACCESS_VIOLATION) {
+        /* disable signal handler for SIGSEGV */
+        fault_handler_t *handler;
+        size_t i;
+        for (i=0; i < faulthandler_nsignals; i++) {
+            handler = &faulthandler_handlers[i];
+            if (handler->signum == SIGSEGV) {
+                faulthandler_disable_fatal_handler(handler);
+                break;
+            }
+        }
+    }
+
+    faulthandler_dump_traceback(fd, fatal_error.all_threads,
+                                fatal_error.interp);
+
+    /* call the next exception handler */
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+#endif
+
 
 /* Install the handler for fatal signals, faulthandler_fatal_error(). */
 
@@ -436,6 +492,9 @@ faulthandler_enable(PyObject *self, PyObject *args, PyObject *kwargs)
             }
             handler->enabled = 1;
         }
+#ifdef MS_WINDOWS
+        AddVectoredExceptionHandler(1, faulthandler_exc_handler);
+#endif
     }
     Py_RETURN_NONE;
 }
@@ -450,14 +509,7 @@ faulthandler_disable(void)
         fatal_error.enabled = 0;
         for (i=0; i < faulthandler_nsignals; i++) {
             handler = &faulthandler_handlers[i];
-            if (!handler->enabled)
-                continue;
-#ifdef HAVE_SIGACTION
-            (void)sigaction(handler->signum, &handler->previous, NULL);
-#else
-            (void)signal(handler->signum, handler->previous);
-#endif
-            handler->enabled = 0;
+            faulthandler_disable_fatal_handler(handler);
         }
     }
 
@@ -944,7 +996,7 @@ faulthandler_fatal_error_py(PyObject *self, PyObject *args)
 {
     char *message;
 #if PY_MAJOR_VERSION >= 3
-    if (!PyArg_ParseTuple(args, "y:fatal_error", &message))
+    if (!PyArg_ParseTuple(args, "y:_fatal_error", &message))
         return NULL;
 #else
     if (!PyArg_ParseTuple(args, "s:fatal_error", &message))
@@ -955,7 +1007,7 @@ faulthandler_fatal_error_py(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-#if defined(HAVE_SIGALTSTACK) && defined(HAVE_SIGACTION)
+
 #ifdef __INTEL_COMPILER
    /* Issue #23654: Turn off ICC's tail call optimization for the
     * stack_overflow generator. ICC turns the recursive tail call into
@@ -967,14 +1019,14 @@ Py_uintptr_t
 stack_overflow(Py_uintptr_t min_sp, Py_uintptr_t max_sp, size_t *depth)
 {
     /* allocate 4096 bytes on the stack at each call */
-    unsigned char buffer[4096];
+    unsigned char buffer[1024*1024];
     Py_uintptr_t sp = (Py_uintptr_t)&buffer;
     *depth += 1;
-    if (sp < min_sp || max_sp < sp)
+    if (sp < min_sp || max_sp < sp) {
         return sp;
-    buffer[0] = 1;
-    buffer[4095] = 0;
-    return stack_overflow(min_sp, max_sp, depth);
+    }
+    memset(buffer, (unsigned char)*depth, sizeof(buffer));
+    return stack_overflow(min_sp, max_sp, depth) + buffer[0];
 }
 
 static PyObject *
@@ -982,13 +1034,18 @@ faulthandler_stack_overflow(PyObject *self)
 {
     size_t depth, size;
     Py_uintptr_t sp = (Py_uintptr_t)&depth;
+    Py_uintptr_t min_sp;
+    Py_uintptr_t max_sp;
     Py_uintptr_t stop;
 
     faulthandler_suppress_crash_report();
     depth = 0;
-    stop = stack_overflow(sp - STACK_OVERFLOW_MAX_SIZE,
-                          sp + STACK_OVERFLOW_MAX_SIZE,
-                          &depth);
+    if (sp > STACK_OVERFLOW_MAX_SIZE)
+        min_sp = sp - STACK_OVERFLOW_MAX_SIZE;
+    else
+        min_sp = 0;
+    max_sp = sp + STACK_OVERFLOW_MAX_SIZE;
+    stop = stack_overflow(min_sp, max_sp, &depth);
     if (sp < stop)
         size = stop - sp;
     else
@@ -999,7 +1056,6 @@ faulthandler_stack_overflow(PyObject *self)
         size, depth);
     return NULL;
 }
-#endif
 
 #if PY_MAJOR_VERSION >= 3
 static int
@@ -1020,6 +1076,18 @@ faulthandler_traverse(PyObject *module, visitproc visit, void *arg)
 #endif
     Py_VISIT(fatal_error.file);
     return 0;
+}
+#endif
+
+#ifdef MS_WINDOWS
+static PyObject *
+faulthandler_raise_exception(PyObject *self, PyObject *args)
+{
+    unsigned int code, flags = 0;
+    if (!PyArg_ParseTuple(args, "I|I:_raise_exception", &code, &flags))
+        return NULL;
+    RaiseException(code, flags, 0, NULL);
+    Py_RETURN_NONE;
 }
 #endif
 
@@ -1079,9 +1147,11 @@ static PyMethodDef module_methods[] = {
      PyDoc_STR("raise_signal(signum): raise a signal")},
     {"_fatal_error", faulthandler_fatal_error_py, METH_VARARGS,
      PyDoc_STR("_fatal_error(message): call Py_FatalError(message)")},
-#if defined(HAVE_SIGALTSTACK) && defined(HAVE_SIGACTION)
     {"_stack_overflow", (PyCFunction)faulthandler_stack_overflow, METH_NOARGS,
      PyDoc_STR("_stack_overflow(): recursive call to raise a stack overflow")},
+#ifdef MS_WINDOWS
+    {"_raise_exception", faulthandler_raise_exception, METH_VARARGS,
+     PyDoc_STR("raise_exception(code, flags=0): Call RaiseException(code, flags).")},
 #endif
     {NULL, NULL}  /* sentinel */
 };
@@ -1122,6 +1192,17 @@ initfaulthandler(void)
 #if PY_MAJOR_VERSION >= 3
         return NULL;
 #else
+
+#ifdef MS_WINDOWS
+    /* RaiseException() flags */
+    if (PyModule_AddIntConstant(m, "_EXCEPTION_NONCONTINUABLE",
+                                EXCEPTION_NONCONTINUABLE))
+        return NULL;
+    if (PyModule_AddIntConstant(m, "_EXCEPTION_NONCONTINUABLE_EXCEPTION",
+                                EXCEPTION_NONCONTINUABLE_EXCEPTION))
+        return NULL;
+#endif
+
         return;
 #endif
     }
