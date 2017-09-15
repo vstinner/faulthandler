@@ -328,6 +328,12 @@ would fail with ``EINTR`` error whereas Python 2.7 has a bad support of
 Changelog
 =========
 
+Version 3.0
+-----------
+
+* On Windows, faulthandler.register() now also installs an handler for Windows
+  exceptions.
+
 Version 2.6 (2017-03-22)
 ------------------------
 

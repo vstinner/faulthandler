@@ -50,7 +50,7 @@ from setuptools.command.develop import develop
 from setuptools.command.easy_install import easy_install
 
 
-VERSION = "2.6"
+VERSION = "3.0"
 
 FILES = ['faulthandler.c', 'traceback.c']
 

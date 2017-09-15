@@ -14,7 +14,7 @@
 #  include <sys/resource.h>
 #endif
 
-#define VERSION 0x206
+#define VERSION 0x300
 
 /* Allocate at maximum 100 MB of the stack to raise the stack overflow */
 #define STACK_OVERFLOW_MAX_SIZE (100*1024*1024)
