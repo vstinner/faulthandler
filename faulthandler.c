@@ -1192,20 +1192,20 @@ initfaulthandler(void)
 #if PY_MAJOR_VERSION >= 3
         return NULL;
 #else
+        return;
+#endif
+    }
 
 #ifdef MS_WINDOWS
     /* RaiseException() flags */
     if (PyModule_AddIntConstant(m, "_EXCEPTION_NONCONTINUABLE",
                                 EXCEPTION_NONCONTINUABLE))
-        return NULL;
+        goto error;
     if (PyModule_AddIntConstant(m, "_EXCEPTION_NONCONTINUABLE_EXCEPTION",
                                 EXCEPTION_NONCONTINUABLE_EXCEPTION))
-        return NULL;
+        goto error;
 #endif
 
-        return;
-#endif
-    }
 
 #ifdef HAVE_SIGALTSTACK
     /* Try to allocate an alternate stack for faulthandler() signal handler to
