@@ -178,7 +178,7 @@ class FaultHandlerTests(unittest.TestCase):
 
     def check_error(self, code, line_number, fatal_error,
                           filename=None, all_threads=True, other_regex=None,
-                          thread_name="python", **kwargs):
+                          thread_name=r"python[23]?", **kwargs):
         """
         Check that the fault handler for fatal errors is enabled and check the
         traceback from the child process output.
@@ -187,11 +187,11 @@ class FaultHandlerTests(unittest.TestCase):
         """
         if all_threads:
             if sys.platform == 'linux2' and thread_name is not None:
-                header = 'Current thread XXX <{}> (most recent call first)'.format(thread_name)
+                header = r'Current thread XXX <{}> \(most recent call first\)'.format(thread_name)
             else:
-                header = 'Current thread XXX (most recent call first)'
+                header = r'Current thread XXX \(most recent call first\)'
         else:
-            header = 'Stack (most recent call first)'
+            header = 'Stack \(most recent call first\)'
         regex = """
             ^{fatal_error}
 
@@ -201,7 +201,7 @@ class FaultHandlerTests(unittest.TestCase):
         regex = dedent(regex).format(
             lineno=line_number,
             fatal_error=fatal_error,
-            header=re.escape(header)).strip()
+            header=header).strip()
         if other_regex:
             regex += '|' + other_regex
         output, exitcode = self.get_output(code, filename, **kwargs)
