@@ -49,7 +49,7 @@ faulthandler works on CPython 2.6-3.5.
 * `faulthandler website <https://faulthandler.readthedocs.io/>`_
   (this page)
 * `faulthandler project at github
-  <https://github.com/haypo/faulthandler/>`_: source code, bug tracker
+  <https://github.com/vstinner/faulthandler/>`_: source code, bug tracker
 * `faulthandler at Python Cheeshop (PyPI)
   <http://pypi.python.org/pypi/faulthandler/>`_
 * Article: `New faulthandler module in Python 3.3 helps debugging
