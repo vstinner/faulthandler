@@ -186,8 +186,10 @@ class FaultHandlerTests(unittest.TestCase):
         Raise an error if the output doesn't match the expected format.
         """
         if all_threads:
-            if sys.platform == 'linux2' and thread_name is not None:
-                header = r'Current thread XXX <{}> \(most recent call first\)'.format(thread_name)
+            if sys.version_info[:2] == (2, 6):
+                thread_name = 'python'
+            if sys.platform.startswith('linux') and thread_name is not None:
+                header = r'Current thread XXX <{0}> \(most recent call first\)'.format(thread_name)
             else:
                 header = r'Current thread XXX \(most recent call first\)'
         else:
