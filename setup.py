@@ -11,7 +11,7 @@
 #  - git commit -a
 #  - git push
 #  - check Travis CI status:
-#    https://travis-ci.org/haypo/faulthandler
+#    https://travis-ci.org/vstinner/faulthandler
 #
 # Release a new version:
 #

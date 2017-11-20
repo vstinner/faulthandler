@@ -6,9 +6,9 @@ Fault handler
    :alt: Latest release on the Python Cheeseshop (PyPI)
    :target: https://pypi.python.org/pypi/faulthandler
 
-.. image:: https://travis-ci.org/haypo/faulthandler.svg?branch=master
+.. image:: https://travis-ci.org/vstinner/faulthandler.svg?branch=master
    :alt: Build status of faulthandler on Travis CI
-   :target: https://travis-ci.org/haypo/faulthandler
+   :target: https://travis-ci.org/vstinner/faulthandler
 
 Fault handler for SIGSEGV, SIGFPE, SIGABRT, SIGBUS and SIGILL signals: display
 the Python traceback and restore the previous handler. Allocate an alternate
