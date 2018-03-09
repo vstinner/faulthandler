@@ -10,6 +10,10 @@ Fault handler
    :alt: Build status of faulthandler on Travis CI
    :target: https://travis-ci.org/vstinner/faulthandler
 
+.. image:: http://unmaintained.tech/badge.svg
+   :target: http://unmaintained.tech/
+   :alt: No Maintenance Intended
+
 Fault handler for SIGSEGV, SIGFPE, SIGABRT, SIGBUS and SIGILL signals: display
 the Python traceback and restore the previous handler. Allocate an alternate
 stack for this handler, if sigaltstack() is available, to be able to allocate
