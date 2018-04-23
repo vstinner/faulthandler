@@ -15,7 +15,7 @@
 #
 # Release a new version:
 #
-#  - git tag -a faulthandler-x.y -m "tag version x.y"
+#  - git tag X.Y
 #  - git push
 #  - git push --tags
 #  - On Linux:
@@ -50,7 +50,7 @@ from setuptools.command.develop import develop
 from setuptools.command.easy_install import easy_install
 
 
-VERSION = "3.1"
+VERSION = "3.2"
 
 FILES = ['faulthandler.c', 'traceback.c']
 
