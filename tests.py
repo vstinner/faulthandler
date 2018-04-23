@@ -178,7 +178,7 @@ class FaultHandlerTests(unittest.TestCase):
 
     def check_error(self, code, line_number, fatal_error,
                           filename=None, all_threads=True, other_regex=None,
-                          thread_name=r"python[23]?", **kwargs):
+                          thread_name=r"python([23](\.\d)?)?", **kwargs):
         """
         Check that the fault handler for fatal errors is enabled and check the
         traceback from the child process output.
@@ -588,13 +588,13 @@ class FaultHandlerTests(unittest.TestCase):
         else:
             lineno = 11
         regex = """
-            ^Thread 0x[0-9a-f]+ (\<\w{{1,16}}\>\s)?\(most recent call first\):
+            ^Thread 0x[0-9a-f]+ (\<[\w\.]{{1,16}}\>\s)?\(most recent call first\):
             (?:  File ".*threading.py", line [0-9]+ in [_a-z]+
             ){{1,3}}  File "<string>", line 24 in run
               File ".*threading.py", line [0-9]+ in _?_bootstrap_inner
               File ".*threading.py", line [0-9]+ in _?_bootstrap
 
-            Current thread XXX (\<\w{{1,16}}\>\s)?\(most recent call first\):
+            Current thread XXX (\<[\w\.]{{1,16}}\>\s)?\(most recent call first\):
               File "<string>", line {lineno} in dump
               File "<string>", line 29 in <module>$
             """
@@ -660,7 +660,7 @@ class FaultHandlerTests(unittest.TestCase):
             count = loops
             if repeat:
                 count *= 2
-            header = r'Timeout \(%s\)!\nCurrent thread XXX (\<\w{1,16}\>\s)?\(most recent call first\):\n' % timeout_str
+            header = r'Timeout \(%s\)!\nCurrent thread XXX (\<[\w\.]{1,16}\>\s)?\(most recent call first\):\n' % timeout_str
             regex = expected_traceback(12, 23, header, min_count=count)
             self.assertRegex(trace, regex)
         else:
@@ -762,7 +762,7 @@ class FaultHandlerTests(unittest.TestCase):
         trace = '\n'.join(trace)
         if not unregister:
             if all_threads:
-                regex = 'Current thread XXX (\<\w{1,16}\>\s)?\(most recent call first\):\n'
+                regex = 'Current thread XXX (\<[\w\.]{1,16}\>\s)?\(most recent call first\):\n'
             else:
                 regex = 'Stack \(most recent call first\):\n'
             regex = expected_traceback(7, 28, regex)
