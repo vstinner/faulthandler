@@ -328,6 +328,14 @@ would fail with ``EINTR`` error whereas Python 2.7 has a bad support of
 Changelog
 =========
 
+Version 3.1
+-----------
+
+* Project moved from https://github.com/haypo/faulthandler to
+  https://github.com/vstinner/faulthandler
+* Fix tests: accept "python2" and "python2.7" thread name in tests
+* Fix tests on Python 2.6.
+
 Version 3.0 (2017-09-16)
 ------------------------
 
