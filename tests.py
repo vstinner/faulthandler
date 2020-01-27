@@ -276,16 +276,17 @@ class FaultHandlerTests(unittest.TestCase):
         for exc_code in (
             0xE06D7363,   # MSC exception ("Emsc")
             0xE0434352,   # COM Callable Runtime exception ("ECCR")
+            0x40010006,   # Debug Print exception
         ):
-            code = f"""
+            code = """
                     import faulthandler
                     faulthandler.enable()
-                    faulthandler._raise_exception({exc_code})
-                    """
+                    faulthandler._raise_exception(0x%X)
+                    """ % exc_code
             code = dedent(code)
             output, exitcode = self.get_output(code)
             self.assertEqual(output, [])
-            self.assertEqual(exitcode, exc_code)
+            self.assertNotEqual(exitcode, 0)
 
     @skipIf(not hasattr(signal, 'SIGBUS'), 'need signal.SIGBUS')
     def test_sigbus(self):
