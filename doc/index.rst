@@ -56,6 +56,15 @@ these versions are no longer supported officially.
 * Article: `New faulthandler module in Python 3.3 helps debugging
   <http://blog.python.org/2011/05/new-faulthandler-module-in-python-33.html>`_
 
+faulthandler 3.2 is the last version released by Victor Stinner. I maintained
+it for 10 years in my free time for the great pleasure of Python 2 users, but
+Python 2 is no longer supported upstream since 2020-01-01. Each faulthandler
+release requires me to start my Windows VM, install Python 2.7 in 32-bit and
+64-bit and type manually some commands to upload Windows binaries. Moreover, I
+have to fix some issues on Travis CI and many small boring tasks. The
+maintenance is far from being free. In 10 years, I got zero "thank you" (and
+0€), only bug reports :-)
+
 
 Example
 =======
@@ -331,6 +340,15 @@ Changelog
 
 Version 3.2
 -----------
+
+faulthandler 3.2 is the last version released by Victor Stinner. I maintained
+it for 10 years in my free time for the great pleasure of Python 2 users, but
+Python 2 is no longer supported upstream since 2020-01-01. Each faulthandler
+release requires me to start my Windows VM, install Python 2.7 in 32-bit and
+64-bit and type manually some commands to upload Windows binaries. Moreover, I
+have to fix some issues on Travis CI and many small boring tasks. The
+maintenance is far from being free. In 10 years, I got zero "thank you" (and
+0€), only bug reports :-)
 
 * On Windows, faulthandler.enable() now ignores MSC and COM exceptions.
   Backport by Dee Moore.
