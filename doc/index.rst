@@ -334,6 +334,10 @@ Version 3.2
 
 * On Windows, faulthandler.enable() now ignores MSC and COM exceptions.
   Backport by Dee Moore.
+* Fix ``faulthandler.register(chain=True)`` stack. faulthandler now allocates a
+  dedicated stack of ``SIGSTKSZ*2`` bytes, instead of just ``SIGSTKSZ`` bytes.
+  Calling the previous signal handler in faulthandler signal handler uses more
+  than ``SIGSTKSZ`` bytes of stack memory on some platforms.
 * Python 2.6 is no longer tested by Travis CI.
 
 Version 3.1 (2018-04-23)
