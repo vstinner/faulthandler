@@ -5,8 +5,8 @@
 #  - update VERSION: faulthandler.c, setup.py, doc/conf.py
 #  - update the changelog: doc/index.rst
 #  - run tests on Linux: tox
-#  - run tests on Windows: \python27\python -m tox
-#  - test maybe also FreeBSD and Mac OS X
+#  - run tests on Windows: py -2.7-64 -m tox -r
+#  - run tests on Windows: py -2.7-32 -m tox -r
 #  - set release date in the changelog: doc/index.rst
 #  - git commit -a
 #  - git push
@@ -26,8 +26,9 @@
 #
 #  - Build 32-bit and 64-bit wheel packages on Windows:
 #
-#    * \python27\python setup.py bdist_wheel upload
-#    * \python27-32\python setup.py bdist_wheel upload
+#    * py -2.7-64 setup.py bdist_wheel upload
+#    * py -2.7-32 setup.py bdist_wheel upload
+#    * (pip install wheel if bdist_wheel is missing)
 #
 # After the release:
 #
