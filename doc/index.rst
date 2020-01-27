@@ -44,7 +44,8 @@ library since CPython 3.3: `faulthandler module
 <http://docs.python.org/dev/library/faulthandler.html>`_. For PyPy,
 faulthandler is builtin since PyPy 5.5: use ``pypy -X faulthandler``.
 
-faulthandler works on CPython 2.6-3.5.
+faulthandler works on CPython 2.7. It might work on Python 2.5-3.5, but
+these versions are no longer supported officially.
 
 * `faulthandler website <https://faulthandler.readthedocs.io/>`_
   (this page)
@@ -327,6 +328,13 @@ would fail with ``EINTR`` error whereas Python 2.7 has a bad support of
 
 Changelog
 =========
+
+Version 3.2
+-----------
+
+* On Windows, faulthandler.enable() now ignores MSC and COM exceptions.
+  Backport by Dee Moore.
+* Python 2.6 is no longer tested by Travis CI.
 
 Version 3.1 (2018-04-23)
 ------------------------
