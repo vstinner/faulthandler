@@ -381,12 +381,33 @@ faulthandler_fatal_error(int signum)
 #ifdef MS_WINDOWS
 extern void _Py_dump_hexadecimal(int fd, unsigned long value, size_t bytes);
 
+static int
+faulthandler_ignore_exception(DWORD code)
+{
+    /* bpo-30557: ignore exceptions which are not errors */
+    if (!(code & 0x80000000)) {
+        return 1;
+    }
+    /* bpo-31701: ignore MSC and COM exceptions
+       E0000000 + code */
+    if (code == 0xE06D7363 /* MSC exception ("Emsc") */
+        || code == 0xE0434352 /* COM Callable Runtime exception ("ECCR") */) {
+        return 1;
+    }
+    /* Interesting exception: log it with the Python traceback */
+    return 0;
+}
+
 static LONG WINAPI
 faulthandler_exc_handler(struct _EXCEPTION_POINTERS *exc_info)
 {
     const int fd = fatal_error.fd;
     DWORD code = exc_info->ExceptionRecord->ExceptionCode;
 
+    if (faulthandler_ignore_exception(code)) {
+        /* ignore the exception: call the next exception handler */
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
     PUTS(fd, "Windows exception: ");
     switch (code)
     {

@@ -271,6 +271,22 @@ class FaultHandlerTests(unittest.TestCase):
             3,
             'Floating point exception')
 
+    @skipIf(sys.platform != 'win32', 'specific to Windows')
+    def test_ignore_exception(self):
+        for exc_code in (
+            0xE06D7363,   # MSC exception ("Emsc")
+            0xE0434352,   # COM Callable Runtime exception ("ECCR")
+        ):
+            code = f"""
+                    import faulthandler
+                    faulthandler.enable()
+                    faulthandler._raise_exception({exc_code})
+                    """
+            code = dedent(code)
+            output, exitcode = self.get_output(code)
+            self.assertEqual(output, [])
+            self.assertEqual(exitcode, exc_code)
+
     @skipIf(not hasattr(signal, 'SIGBUS'), 'need signal.SIGBUS')
     def test_sigbus(self):
         self.check_fatal_error("""
